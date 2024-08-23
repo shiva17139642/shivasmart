@@ -1,0 +1,819 @@
+##### DAILY MONITORING ACTIVITY #############
+
+SELECT LAST_UPDATED_TIME,LSTU FROM "LIBERTYDB"."INFOBJ_FLIGHT" order by LSTU desc;
+
+PLEASE FOLLOW  5 S RULE IN DAILY MONITERING PURPOSE.
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+ 
+1. STATUS OF THE DATABASE
+ 
+2. STATUS OF THE SERVICE
+
+3. STATUS OF THE LISTNERS
+
+4. STATUS OF THE STOREGE
+ 
+5. STATUS OF THE SYNC TO STANDBYDB,BLOCKING SESSIONS,BACKUPS AND ALERT LOGS 
+  
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+1)	Process monitoring:-
+
+ps -ef | grep pmon
+
+export ORACLE_SID=AMSPRD1
+
+
+2)	Database  running status:(Database Name):- 
+
+srvctl status database -d AMSPRD
+
+srvctl status database -d IMBDB
+srvctl status database -d LIBERTYDB
+srvctl status database -d BAWDB
+
+3)	Services running status:(Database Name):-
+
+srvctl status service -d AMSPRD
+
+srvctl status service -d IMBDB
+srvctl status service -d LIBERTYDB
+srvctl status service -d BAWDB
+
+4)	Listener running status check: lsnrctl status listener (By default name will be listener only):-
+
+srvctl status listener
+
+lsnrctl status 
+
+5)	Node Apps Health Check status:-
+
+srvctl status nodeapps
+
+6)	SCAN VIP Health Check status:-
+
+srvctl status scan
+
+7)	ASM Health Check status:-
+
+srvctl status asm
+
+8)	Server Health Check status:-
+
+srvctl status server -n cdc1aodbdb1 -a
+
+srvctl status server -n cdc1aodbdb2 -a
+
+9)	Mount points check:(mount points should be under 75%):-
+
+df -h
+
+du -sh *
+
+10)	Checking DATABASE and alert logs Location:-
+
+TO KNOW ALERT LOG LOCATIONS:-
+-----------------------------
+IN OS LEVEL:-
+
+adrci
+adrci> show home;
+
+SQL>
+select value from v$diag_info;
+
+PRIMARY:-
+
+cd /u02/app/oracle/diag/rdbms/amsprd/AMSPRD1/trace
+
+cd /u02/app/oracle/diag/rdbms/imbdb/IMBDB1/trace
+
+cd /u02/app/oracle/diag/rdbms/libertydb/LIBERTYD1/trace  
+                       
+cd /u02/app/oracle/diag/rdbms/bawdb/BAWDB1/trace
+
+cd /u01/app/oracle/diag/crs/cdc1aodbdb1/crs/trace
+
+cd /u01/app/oracle/diag/crs/prdbawdb1/crs/trace
+
+STANDBY:-
+
+cd /u02/app/oracle/diag/rdbms/amsprdstby/AMSPRDSTBY1/trace/
+
+cd /u02/app/oracle/diag/rdbms/imbdbstby/IMBDBSTBY1/trace
+
+cd /u02/app/oracle/diag/rdbms/libertydbstby/LIBERTYDSTBY1/trace  
+                       
+cd /u02/app/oracle/diag/rdbms/bawdb/BAWDB1/trace
+
+cd /u01/app/oracle/diag/crs/cdc2aodbdb1/crs/trace
+
+cd /u01/app/oracle/diag/crs/cdc2prdbawdb1/crs/trace
+
+
+ls -lart al*.log
+
+tail -500f al*.log
+tail -1500f al*.log
+
+head -1000 al*.log
+head -1500 al*.log
+
+
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+
+switch to grid:-
+---------------
+su - grid
+<grid_password>
+
+
+11)	Cluster Health Check status:-
+
+crsctl check cluster -all
+
+crsctl check crs
+
+12)	Cluster RESOURCE Health Check status:-
+
+crsctl status resource -t
+
+13)	Cluster OCR file backup Check status:-
+
+ocrconfig -showbackup
+
+14)	ASMCMD check: (check archivelogs space and maintain 2 days archivelogs):-
+
+asmcmd
+ 
+lsdg
+
+State    Type    Rebal  Sector  Logical_Sector  Block       AU  Total_MB  Free_MB  Req_mir_free_MB  Usable_file_MB  Offline_disks  Voting_files  Name
+MOUNTED  EXTERN  N         512             512   4096  4194304    143360   143220                0          143220              0             N  ARCHIVES/
+MOUNTED  EXTERN  N         512             512   4096  4194304    307200   192052                0          192052              0             N  BACKUP/
+MOUNTED  EXTERN  N         512             512   4096  4194304    716800   276344                0          276344              0             N  DATA/
+MOUNTED  EXTERN  N         512             512   4096  4194304    204800   200872                0          200872              0             N  FRA/
+MOUNTED  HIGH    N         512             512   4096  4194304    102400   101088            40960           20042              0             Y  OCR/
+MOUNTED  EXTERN  N         512             512   4096  4194304     61428    59228                0           59228              0             N  REDO/
+
+15) CLUSTER LOG:-
+
+cd /u01/app/oracle/diag/crs/cdc1aodbdb1/crs/trace
+
+tail -500f al*.log
+
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+
+16)	Connect to the database and check name of the database:-
+
+ps -ef|grep pmon
+
+export ORACLE_SID=AMSPRD1
+
+sqlplus / as sysdba
+
+set lines 200;
+select status,name,DATABASE_ROLE,OPEN_MODE,switchover_status from v$instance,v$database;
+
+set lines 200 pages 200;
+select name,INSTANCE_NUMBER,INSTANCE_NAME,STATUS,OPEN_MODE,switchover_status from gv$instance a,gv$database b  where a.inst_id=b.inst_id;
+
+
+17)	Backup status check:-
+
+col STATUS format a9
+col hrs format 999.99 
+ col start_time format A20
+ col end_time format A20
+ SET LINES 999 PAGES 999;
+ select SESSION_KEY, INPUT_TYPE, STATUS, to_char(START_TIME,'mm/dd/yy hh24:mi') start_time,
+	to_char(END_TIME,'mm/dd/yyhh24:mi') end_time, elapsed_seconds/3600 hrs
+	from V$RMAN_BACKUP_JOB_DETAILS where start_time > sysdate-6 order by session_key;
+		
+	
+	
+Incase backup fails take manually:-
+
+rman target /
+
+rman> 
+backup incremental level 1 database;
+or
+crontab -l
+sh /tmp/scripts/backup.sh LIBERTYD1  inc  > /tmp/inc_backup.log
+
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+18)	Blocking sessions status check:-
+
+select
+   blocking_session,
+   sid,
+   serial#,INST_ID,
+   wait_class,
+   seconds_in_wait,sql_id
+from
+   gv$session
+where
+   blocking_session is not NULL
+order by
+   blocking_session;
+
+
+Incase of any blocking sessions kil with information after application team:-
+---------------------------------------------------------------------------
+  
+alter system kill session '<sid number>,<serial#>,@instance';
+
+Incase of any locking sessions:-
+-------------------------------
+col owner for a30;
+col name for a30;
+select * from dba_dml_locks; 
+
+
+For find out serial# value:-
+--------------------------
+select serial# from v$session where SID=38;
+
+Detect lock objects:-
+---------------------
+set lines 200 pages 200
+col owner for a30
+col object_name for a30
+col object_type for a20
+col sid for 9999
+col status for a20
+select
+   c.owner,
+   c.object_name,
+   c.object_type,
+   b.sid,
+   b.serial#,
+   b.status,
+   b.osuser,
+   b.machine
+from v$locked_object a ,
+   v$session b,
+   dba_objects c
+where
+   b.sid = a.session_id
+and
+   a.object_id = c.object_id;
+
+
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+19) Inactive sessions check:-
+-------------------------
+select status,count(*) from gv$session group by status;
+
+To get the total number of sessions connected :-
+------------------------------------------------
+SELECT COUNT(*) AS TOTAL_SESSIONS
+FROM GV$SESSION;
+
+TO CHECK THE LONG RUNNING SESSIONS:-
+------------------------------------
+set lines 200 pages 200;
+col sid for 99999999;
+col TOTALWORK for a40;
+col sofar for a40;
+select SID,TARGET||OPNAME TARGET, TOTALWORK, SOFAR,TIME_REMAINING/60 Mins_Remaining,ELAPSED_SECONDS,SQL_ID from gv$session_longops where TIME_REMAINING>0 order by TIME_REMAINING;
+
+
+TO CHECK LOAD BALANCING IN ON THAT TIME:-
+---------------------------------------
+set lines 200 pages 200;
+col USERNAME for a44;
+select inst_id,username,count(*) from gv$session where username is not null group by inst_id,username order by 2,1;
+
+
+TO CONNECTED USERS ON THAT TIME:-
+-------------------------------
+set lines 200;
+set pages 200;
+col username for a25;
+col machine for a25;
+col osuser for a30;
+select sid,serial#,username,machine,program,osuser from gv$session where username not in ('SYS','SYSTEM','SYSMAN','DBSNMP','NULL','SYSRAC') order by username,MACHINE,PROGRAM,OSUSER;
+
+		(OR)
+		
+SELECT username, machine, program, inst_id
+FROM gv$session
+WHERE username IS NOT NULL;
+
+		
+To count the number of distinct users connected to the database:-
+----------------------------------------------------------------
+SELECT COUNT(DISTINCT USERNAME) AS NUM_USERS
+FROM GV$SESSION
+WHERE USERNAME IS NOT NULL;
+
+ 
+To more detailed information about each user:-
+-----------------------------------------------
+SELECT USERNAME, COUNT(*) AS SESSIONS_PER_USER
+FROM GV$SESSION
+WHERE USERNAME IS NOT NULL
+GROUP BY USERNAME
+ORDER BY SESSIONS_PER_USER DESC;
+
+
+
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+20)	Check the usage of SGA :-
+
+select round(used.bytes /1024/1024/1024 ,2) used_gb
+, round(free.bytes /1024/1024/1024 ,2) free_gb
+, round(tot.bytes /1024/1024/1024 ,2) total_gb
+from (select sum(bytes) bytes
+from v$sgastat
+where name != 'free memory') used
+, (select sum(bytes) bytes
+from v$sgastat
+where name = 'free memory') free
+, (select sum(bytes) bytes
+from v$sgastat) tot ;
+
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+
+21)	TO CHECK THE TABLESPACE USAGE:-
+----------------------------------
+
+TO KNOW TABLESPACE USAGE IN MB:-
+------------------------------
+SELECT
+    df.tablespace_name AS "Tablespace",
+    df.bytes / (1024 * 1024) AS "Size_MB",
+    (df.bytes - NVL(fs.bytes, 0)) / (1024 * 1024) AS "Used_MB",
+    NVL(fs.bytes, 0) / (1024 * 1024) AS "Free_MB",
+    ROUND(((df.bytes - NVL(fs.bytes, 0)) / df.bytes) * 100, 2) AS "Pct_Used"
+FROM
+    (SELECT tablespace_name, SUM(bytes) AS bytes
+     FROM dba_data_files
+     GROUP BY tablespace_name) df,
+    (SELECT tablespace_name, SUM(bytes) AS bytes
+     FROM dba_free_space
+     GROUP BY tablespace_name) fs
+WHERE
+    df.tablespace_name = fs.tablespace_name(+)
+ORDER BY
+    "Pct_Used" DESC;
+	
+	
+-----------------------------------------------------------------------------------------------------------
+TO KNOW TABLESPACE USAGE IN GB:-
+------------------------------
+SELECT
+    df.tablespace_name AS "Tablespace",
+    df.bytes / (1024 * 1024 * 1024) AS "Size_GB",
+    (df.bytes - NVL(fs.bytes, 0)) / (1024 * 1024 * 1024) AS "Used_GB",
+    NVL(fs.bytes, 0) / (1024 * 1024 * 1024) AS "Free_GB",
+    ROUND(((df.bytes - NVL(fs.bytes, 0)) / df.bytes) * 100, 2) AS "Pct_Used"
+FROM
+    (SELECT tablespace_name, SUM(bytes) AS bytes
+     FROM dba_data_files
+     GROUP BY tablespace_name) df,
+    (SELECT tablespace_name, SUM(bytes) AS bytes
+     FROM dba_free_space
+     GROUP BY tablespace_name) fs
+WHERE
+    df.tablespace_name = fs.tablespace_name(+)
+ORDER BY
+    "Pct_Used" DESC;
+
+
+
+TO KNOW TABLESPACE DATATRANSFER CHECKUP IN GB:-
+---------------------------------------------
+
+select
+round(sofar/totalwork*100,2) percent_completed,
+v$session_longops.*
+from
+v$session_longops
+where
+sofar <> totalwork
+order by
+target,
+sid;
+
+-----------------------------------------------------------------------------------------------------------
+TO KNOW EACH TABLESPACE USAGE IN GB:-
+----------------------------------
+
+SELECT
+    df.tablespace_name AS "Tablespace",
+    df.bytes / (1024 * 1024 * 1024) AS "Size_GB",
+    (df.bytes - NVL(fs.bytes, 0)) / (1024 * 1024 * 1024) AS "Used_GB",
+    NVL(fs.bytes, 0) / (1024 * 1024 * 1024) AS "Free_GB",
+    ROUND(((df.bytes - NVL(fs.bytes, 0)) / df.bytes) * 100, 2) AS "Pct_Used"
+FROM
+    (SELECT tablespace_name, SUM(bytes) AS bytes
+     FROM dba_data_files
+     WHERE tablespace_name = 'SYSAUX'
+     GROUP BY tablespace_name) df,
+    (SELECT tablespace_name, SUM(bytes) AS bytes
+     FROM dba_free_space
+     WHERE tablespace_name = 'SYSAUX'
+     GROUP BY tablespace_name) fs
+WHERE
+    df.tablespace_name = fs.tablespace_name(+)
+ORDER BY
+    "Pct_Used" DESC;
+	
+
+TO KNOW EACH TABLESPACE IN DATAFILES:-
+------------------------------------
+
+SQL> 
+col FILE_NAME for a55;
+set lines 200 pages 200;
+SELECT file_id,file_name, ROUND(bytes/1024/1024) AS size_mb,ROUND(maxbytes/1024/1024) AS max_size_mb,autoextensible,increment_by,status FROM   dba_data_files WHERE  tablespace_name = 'SYSAUX';
+
+
+-----------------------------------------------------------------------------------------------------------
+set pages 200;
+select  round(sum(bytes)/1024/1024/1024,2) Gbytes_used,round(sum(MAXBYTES)/1024/1024/1024,2) Gbytes_alloc
+,tablespace_name--,round((sum(bytes)/sum(maxbytes))*100,2) pct
+from dba_data_files where tablespace_name not like '%UNDO%' group by  tablespace_name order by 1 desc;  
+
+-----------------------------------------------------------------------------------------------------------
+
+set linesize 3000 
+column dummy noprint
+column  pct_used format 999.9       heading "%|Used"
+column  name    format a19      heading "Tablespace Name"
+column  Kbytes   format 999,999,999    heading "MBytes"
+column  used    format 999,999,999   heading "Used"
+column  free    format 999,999,999  heading "Free"
+column  largest    format 999,999,999  heading "Largest"
+column  max_size format 999,999,999 heading "MaxPoss|Mbytes"
+column  pct_max_used format 999.9       heading "%|Max|Used"
+break   on report
+compute sum of kbytes on report
+compute sum of free on report
+compute sum of used on report
+select (select decode(extent_management,'LOCAL','*',' ')
+          from dba_tablespaces where tablespace_name = b.tablespace_name) ||
+nvl(b.tablespace_name,
+             nvl(a.tablespace_name,'UNKOWN')) name,
+       kbytes_alloc kbytes,
+       kbytes_alloc-nvl(kbytes_free,0) used,
+       nvl(kbytes_free,0) free,
+       ((kbytes_alloc-nvl(kbytes_free,0))/
+                          kbytes_alloc)*100 pct_used,
+       nvl(largest,0) largest,
+       nvl(kbytes_max,kbytes_alloc) Max_Size,
+       decode( kbytes_max, 0, 0, (kbytes_alloc/kbytes_max)*100) pct_max_used
+from ( select sum(bytes)/1024/1024 Kbytes_free,
+              max(bytes)/1024/1024 largest,
+              tablespace_name
+       from  sys.dba_free_space
+       group by tablespace_name ) a,
+     ( select sum(bytes)/1024/1024 Kbytes_alloc,
+              sum(maxbytes)/1024/1024 Kbytes_max,
+              tablespace_name
+       from sys.dba_data_files
+       group by tablespace_name
+       union all
+      select sum(bytes)/1024/1024 Kbytes_alloc,
+              sum(maxbytes)/1024/1024 Kbytes_max,
+              tablespace_name
+       from sys.dba_temp_files
+       group by tablespace_name )b
+where a.tablespace_name (+) = b.tablespace_name
+order by 5;
+
+-------------------------------------------------------------------------------------------------------------
+SET LINESIZE 200 pages 200;
+SELECT tablespace_name,
+       block_size,
+       extent_management,
+       segment_space_management,
+       status
+FROM   dba_tablespaces
+ORDER BY tablespace_name;
+
+
+
+
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+
+22)	Disk group free space status check:-
+
+set colsep |
+SET ECHO        OFF
+ SET FEEDBACK    6
+ SET HEADING     ON
+ SET LINESIZE    180
+ SET PAGESIZE    50000
+ SET TERMOUT     ON
+ SET TIMING      OFF
+ SET TRIMOUT     ON
+ SET TRIMSPOOL   ON
+ SET VERIFY      OFF
+ CLEAR COLUMNS
+ CLEAR BREAKS
+ CLEAR COMPUTES
+ COLUMN group_name             FORMAT a25           HEAD 'Disk Group|Name'
+ COLUMN state                  FORMAT a11           HEAD 'State'
+ COLUMN total_mb               FORMAT 999,999,999   HEAD 'Total Size (GB)'
+ COLUMN free_mb                FORMAT 999,999,999   HEAD 'Free Size (GB)'
+ COLUMN pct_free               FORMAT 999.99        HEAD '% Free'
+ BREAK ON report ON disk_group_name SKIP 1
+ COMPUTE sum LABEL "Grand Total: " OF total_mb used_mb ON report
+ SELECT
+     name                                     group_name
+   , state                                    state
+   , total_mb/1024                            total_mb
+   , free_mb/1024                             free_mb
+   , ROUND(((free_mb / total_mb))*100, 2)      pct_free
+ FROM
+     v$asm_diskgroup
+ WHERE
+     total_mb != 0
+ ORDER BY
+     Name
+ /
+
+
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+
+23)	Check gap between DC1 and DC2 on primary:-
+-----------------------------------------
+
+set colsep |
+set scan on
+set feed off
+set linesize 200
+BREAK ON ROW SKIP 1s
+column thread format a6;
+column "PR - Archived" format a13;
+column "STBY - Archived" format a15;
+column "STBY - Applied" format a14;
+column "Shipping GAP (PR -> STBY)" format a25;
+column "Applied GAP (STBY -> STBY)" format a26;
+--ACCEPT DEST PROMPT 'Enter the Standby Archive Log Destination :  '
+SELECT   *
+    FROM   (SELECT   LPAD (t1, 4, ' ') "Thread",
+                     LPAD (pricre, 9, ' ') "PR - Archived",
+                     LPAD (stdcre, 10, ' ') "STBY - Archived",
+                     LPAD (stdnapp, 9, ' ') "STBY - Applied",
+                     LPAD (pricre - stdcre, 13, ' ')
+                        "Shipping GAP (PR -> STBY)",
+                     LPAD (stdcre - stdnapp, 15, ' ')
+                        "Applied GAP (STBY -> STBY)"
+              FROM   (  SELECT   MAX (sequence#) stdcre, thread# t1
+                          FROM   v$archived_log
+                         WHERE   standby_dest = 'YES'
+                                 AND resetlogs_id IN
+                                          (SELECT   MAX (RESETLOGS_ID)
+                                             FROM   v$archived_log)
+                                 AND thread# IN (1, 2, 3, 4)
+                      GROUP BY   thread#) a,
+                     (  SELECT   MAX (sequence#) stdnapp, thread# t2
+                          FROM   v$archived_log
+                         WHERE   standby_dest = 'YES'
+                                 AND resetlogs_id IN
+                                          (SELECT   MAX (RESETLOGS_ID)
+                                             FROM   v$archived_log)
+                                 AND thread# IN (1, 2, 3, 4)
+                                 AND applied = 'YES'
+                      GROUP BY   thread#) b,
+                     (  SELECT   MAX (sequence#) pricre, thread# t3
+                          FROM   v$archived_log
+                         WHERE   standby_dest = 'NO'
+                                 AND resetlogs_id IN
+                                          (SELECT   MAX (RESETLOGS_ID)
+                                             FROM   v$archived_log)
+                                 AND thread# IN (1, 2, 3, 4)
+                      GROUP BY   thread#) c
+             WHERE   a.t1 = b.t2 AND b.t2 = c.t3 AND c.t3 = a.t1)
+ORDER BY   1
+/
+set feed on
+break on off
+
+
+
+----------------- -------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------
+Finally verfication this primary enable or not:-
+-------------------------------------------------
+
+alter system set log_archive_dest_state_2=defer scope=both sid='*';
+
+alter system set log_archive_dest_state_2=enable scope=both sid='*';
+
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+
+24)	To Verify indexes are valid are not:-
+---------------------------------------
+
+SQL> 
+select owner,index_name ,tablespace_name ,null partition from dba_indexes  where
+         status = 'UNUSABLE'
+        union all
+        select index_owner,index_name ,tablespace_name ,partition_name from dba_ind_partitions  where
+        status = 'UNUSABLE';  
+
+25)	Dump location:-
+---------------------
+show parameter dump;
+
+NAME                                 TYPE        VALUE
+------------------------------------ ----------- ------------------------------
+core_dump_dest                       string      /u02/app/oracle/diag/rdbms/ams
+                                                 prd/AMSPRD1/cdump
+sql>
+SELECT SUM(PINS-RELOADS)/SUM(PINS)*100 as "Library Cache Hit Ratio" FROM v$librarycache;
+
+Library Cache Hit Ratio
+-----------------------
+             99.7340267
+
+SQL>
+select sum(gets) as "Gets", sum(getmisses) as "Misses", (1-(sum(getmisses)/sum(gets)))*100 as "CACHE HIT RATIO"
+from gv$rowcache;
+ 
+ Gets     Misses CACHE HIT RATIO
+---------- ---------- ---------------
+7038919092    2975589      99.9577266
+
+SQL> 
+SELECT round((P1.value + P2.value - P3.value) /
+       (P1.value + P2.value)*100,2) "Cache Hit Ratio (DB)"
+         FROM   v$sysstat P1, v$sysstat P2, v$sysstat P3
+         WHERE  P1.name = 'db block gets'
+         AND    P2.name = 'consistent gets'
+         AND    P3.name = 'physical reads'; 
+
+Cache Hit Ratio (DB)
+--------------------
+               94.14
+
+SQL> 
+col name for a30;
+SELECT name, (1-(misses/gets))*100 AS "Ratio", sleeps FROM v$latch WHERE name in ('library cache', 'shared pool');
+
+
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+26)	TO KNOW PING FILE STATUS:-
+
+sudo  ping 10.102.117.13 >> /tmp/dc1.txt
+
+TO SEE FILE:-
+
+less /tmp/dc1.txt
+
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+
+27)	TO REMOVE/PURGE OLD TRACE IN ORACLE HOME FILES:- FOR MONTHLY ONCE
+------------------------
+
+find . -type f -name "*.trc" -mtime +180 -exec rm -rf {} \;
+
+find . -type f -name "*.trm" -mtime +180 -exec rm -rf {} \;
+
+find . -type f -name "*.aud" -mtime +180 -exec rm -rf {} \;
+
+find . -type f -name 2023-05-10 -ls
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+
+28)	cluter logs getting paticular date:-
+
+awk '/^2023-12-05/, /^2023-12-10/' al*.log
+
+
+awk '/^2023-05-10/, /^2023-05-10/' *.aud
+
+
+
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+
+29) Crosscheck archivelogs: After clearing archives we need to crosscheck the archive logs, if not the backup of database will not happen on the next day.
+rm –rf directory name – remove the old archives if space is less:-
+
+rman target /
+
+Crosscheck archivelog all;
+
+delete noprompt expired archivelog all;
+
+TO SWITCH ARCHIVELOG:-
+------------------------
+
+ALTER SYSTEM ARCHIVE LOG CURRENT ;
+
+
+**Estimate Archive Log Generation in GB:**:-
+---------------------------------------
+SELECT TRUNC(completion_time) AS day,SUM(blocks * block_size) / (1024 * 1024 * 1024) AS size_in_GB FROM v$archived_log WHERE completion_time > SYSDATE-7 GROUP BY TRUNC(completion_time) ORDER BY day;
+
+**Estimate Archive Log Generation DAILY:**:-
+-------------------------------------
+SELECT
+    TRUNC(FIRST_TIME) AS ARCHIVE_DATE,
+    COUNT(*) AS ARCHIVE_COUNT
+FROM
+    V$ARCHIVED_LOG
+GROUP BY
+    TRUNC(FIRST_TIME)
+ORDER BY
+    ARCHIVE_DATE;
+
+
+**Estimate Archive Log Generation AVG DAY:**:-
+-----------------------------------------
+SELECT
+    AVG(DAILY_ARCHIVE_COUNT) AS AVG_ARCHIVES_PER_DAY
+FROM
+    (
+        SELECT
+            TRUNC(FIRST_TIME) AS ARCHIVE_DATE,
+            COUNT(*) AS DAILY_ARCHIVE_COUNT
+        FROM
+            V$ARCHIVED_LOG
+        GROUP BY
+            TRUNC(FIRST_TIME)
+    );
+
+
+**Estimate Archive Log Generation in minutes:**:-
+-------------------------------------
+WITH Archive_Times AS (
+    SELECT
+        FIRST_TIME,
+        LEAD(FIRST_TIME) OVER (ORDER BY FIRST_TIME) AS NEXT_FIRST_TIME
+    FROM
+        V$ARCHIVED_LOG
+)
+SELECT
+    AVG(NEXT_FIRST_TIME - FIRST_TIME) * 24 * 60 AS AVG_ARCHIVE_GEN_TIME_MINUTES
+FROM
+    Archive_Times
+WHERE
+    NEXT_FIRST_TIME IS NOT NULL;
+
+
+
+
+30)	On daily basis, (PURGEING FILES) we need to run the following commands for the effective performance of DB. 
+For DML statements, we have to give commit command. By performing this activity, we have check the blocking sessions by taking another session.
+---------------------------------------------------------------------------------------------------------------------------------------
+
+IMBDB (10.102.123.11):-
+
+delete from IMBDB.IMB_SRC_MSG_ORDER WHERE mq_msg_id<=(SELECT min(mq_msg_id) FROM IMBDB.IMB_SRC_MSG_ORDER S where received_at BETWEEN SYSDATE - (4 / 24) AND SYSDATE);
+
+commit;
+
+
+delete from IMBDB.IMB_TGT_MSG_ORDER WHERE mq_msg_id<=(SELECT min(mq_msg_id) FROM IMBDB.IMB_SRC_MSG_ORDER S where received_at BETWEEN SYSDATE - (4 / 24) AND SYSDATE); 
+
+commit;
+
+delete from IMBDB.IMB_ACK where GEN_TIME < (SYSDATE - 4/24);
+
+commit;
+
+LIBERTYDB (10.102.123.11):-
+
+delete from libertydb.task_runs where startdate < (sysdate-1);
+
+commit;
+
+ 84);
+
+commit;
+
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+ 
+31) Finally verfication this primary enable or not:-
+-------------------------------------------------
+
+alter system set log_archive_dest_state_2=defer scope=both sid='*';
+
+alter system set log_archive_dest_state_2=enable scope=both sid='*';
+
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+SELECT LAST_UPDATED_TIME,LSTU FROM "LIBERTYDB"."INFOBJ_FLIGHT" order by LSTU asc;
+
+netstat -anp | grep LISTEN

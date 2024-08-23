@@ -1,0 +1,345 @@
+TO KNOW DIRECTORY STATUS:-
+-------------------------
+
+set lines 150 pages 150;
+col OWNER for a30;
+col DIRECTORY_NAME for a30;
+col DIRECTORY_PATH for a30;
+select owner,DIRECTORY_NAME,DIRECTORY_PATH from dba_directories;
+
+CREATE OR REPLACE DIRECTORY DATAPUMP_BAWDB AS '/u02/DATAPUMP_BAWDB';
+
+-----------------------------------------------------------------------------
+
+TO KKNOW THE ALL USERS:-
+---------------------------
+set pages 200;
+select username from all_users;
+
+
+TO KNOW THE ALL USESRS LIST:-
+--------------------------------
+set lines 200;
+set pages 200;
+col PROFILE for a30;
+col ACCOUNT_STATUS for a30;
+col USERNAME for a30;
+select USERNAME,ACCOUNT_STATUS, LOCK_DATE, EXPIRY_DATE from DBA_USERS;
+
+					(OR)
+
+SELECT username,DEFAULT_TABLESPACE from  dba_users WHERE TRUNC(created) > (SELECT MIN(TRUNC(created)) FROM dba_users);
+
+TO KNOW THE NON-DEFAULT USESRS LIST:-
+--------------------------------
+select username from all_users where oracle_maintained = 'N';
+
+					(OR)
+
+SELECT username FROM dba_users 
+WHERE TRUNC(created) > (SELECT MIN(TRUNC(created)) FROM dba_users);
+
+
+TO KNOW TABLESPACES OF USERS:-
+----------------------------------
+set lines 200 pages 200;
+col username for a25;
+col profile for a20;
+col DEFAULT_TABLESPACE for a20;
+col TEMPORARY_TABLESPACE for a20;
+col ACCOUNT_STATUS for a20;
+select username,DEFAULT_TABLESPACE,TEMPORARY_TABLESPACE,PROFILE,ACCOUNT_STATUS,EXPIRY_DATE from dba_users order by 1 ;
+
+
+
+-----------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------
+
+set pages 9999 lines 200;
+col owner for a12;
+col object_name for a30;
+col object_type for a20;
+select owner,object_name,object_type,status from dba_objects where status = 'INVALID' order by owner,object_type, object_name;
+
+
+-- Run the script as SYSDBA
+SQL> @?/rdbms/admin/utlrp.sql
+
+
+
+TO KKNOW THE ALL USERS:-
+---------------------------
+set pages 200;
+select username from all_users;
+
+-----------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------
+
+To check user roles and privileges in an Oracle database, you can use the following SQL queries:-
+-------------------------------------------------------------------------------------------------
+ 
+1. To check roles assigned to a user:
+
+col GRANTEE for a40;
+col GRANTED_ROLE for a55;
+set lines 200 pages 200;
+SELECT * FROM DBA_ROLE_PRIVS WHERE GRANTEE = 'PAVAN';
+
+ 
+2. To check system privileges granted to a user:
+
+SELECT * FROM DBA_SYS_PRIVS WHERE GRANTEE = 'IMBDB';
+
+ 
+3. To check object privileges granted to a user:
+
+SELECT * FROM DBA_TAB_PRIVS WHERE GRANTEE = 'PAVAN';
+
+ 
+Replace 'TESTDB' with the actual username you want to check. Keep in mind that you need appropriate privileges to execute these queries, typically requiring DBA or SELECT privileges on the mentioned DBA views.
+
+
+
+PROFILES:-
+-------------------------------
+
+Get profile information....
+
+set lines 200 ;
+set pages 200;
+col profile for a32;
+col resource_name for a50;
+col limit for a50;
+
+select distinct profile from dba_profiles ;
+
+select profile,resource_name, limit from dba_profiles where profile = 'DEFAULT';
+
+CREATE PROFILE:
+
+CREATE PROFILE APP_PROFILE
+LIMIT
+COMPOSITE_LIMIT UNLIMITED
+SESSIONS_PER_USER 2
+CPU_PER_SESSION UNLIMITED
+CPU_PER_CALL UNLIMITED
+LOGICAL_READS_PER_SESSION UNLIMITED
+LOGICAL_READS_PER_CALL UNLIMITED
+IDLE_TIME 1
+CONNECT_TIME 5
+PRIVATE_SGA UNLIMITED
+FAILED_LOGIN_ATTEMPTS 10
+PASSWORD_LIFE_TIME 180
+PASSWORD_REUSE_TIME UNLIMITED
+PASSWORD_REUSE_MAX UNLIMITED
+PASSWORD_VERIFY_FUNCTION NULL
+PASSWORD_LOCK_TIME UNLIMITED
+PASSWORD_GRACE_TIME UNLIMITED;
+
+alter profile:
+
+ALTER PROFILE APP_PROFILE LIMIT SESSIONS_PER_USER 1;
+ALTER PROFILE APP_PROFILE LIMIT FAILED_LOGIN_ATTEMPTS 3;
+
+####################################################################################################
+####################################################################################################
+
+ROLES:-
+------------------------------
+--check available roles:-
+
+col role for a30
+select distinct ROLE  from role_role_privs ;
+
+---to check grants of a ROLES:-
+
+select ROLE,GRANTED_ROLE  from role_role_privs where role='GSMUSER_ROLE';
+
+
+-- ALL System privileges :- 
+
+SELECT distinct PRIVILEGE FROM DBA_SYS_PRIVS order by 1;
+
+-- System privileges granted to an user :-
+
+SELECT * FROM DBA_SYS_PRIVS where grantee='TESTDB';
+
+-- Roles granted to an user :-
+col grantee for a20;
+col GRANTED_ROLE for a20;
+SELECT * FROM DBA_ROLE_PRIVS where grantee='TESTDB';
+
+-- Object privileges granted to an user ( SCOTT)
+col owner for a20;
+col grantee for a20;
+col GRANTOR for a20;
+col table_name for a20;
+select GRANTEE,OWNER,TABLE_NAME,GRANTOR,PRIVILEGE from DBA_TAB_PRIVS WHERE GRANTEE='TESTDB';
+
+-- Column specific privileges granted
+
+SELECT * FROM DBA_COL_PRIVS WHERE GRANTEE='TESTDB';
+
+-- Table privileges
+
+select * FROM dba_role_privs WHERE granted_role = 'DBA';
+
+select * FROM dba_role_privs WHERE granted_role = 'MONITORDB';
+
+select * FROM dba_role_privs WHERE granted_role = 'ADVISOR';
+
+#################################################################################################
+#################################################################################################
+
+GRANT INSERT, UPDATE, DELETE ON TESTUSER1.EMPTABL on SCOTT;
+GRANT ALL ON TESTUSER1.EMPTABL on SCOTT;
+
+-- Grant privilege on few columns of a table
+--Only INSERT,UPDATE can be granted at COLUMN level.
+
+--GRANT insert (emp_id) ON TESTUSER1.EMPTABL TO SCOTT;
+--GRANT UPDATE(emp_id) ON TESTUSER1.EMPTABL TO SCOTT;
+
+USER
+create user identified by password default tablespace users  temporary tablespace temp;
+
+select dbms_metadata.get_ddl('USER', u.username) AS ddl from dba_users u where u.username = 'USER1';
+
+alter user user1 identified by values 'S:3C030687D5FB49EFF32112FA5462C3D4E97E52F50E4CCCA72E009D822998;T:FBB3287F269FC426D3490C05827070CA8D289068F62EA736A0C632A448BC1FC515D359633A4CF79FB37A2CC74072C40F0C479F70C63F588B1C24A0BF0296336B24E2FCD1CE89C590A6AFE31A25504734';
+
+
+
+Eg:
+
+create user SCOTT identified by oracle#41234
+default tablespace users
+temporary tablespace TEMP;
+
+-To create an user, which will prompt for new password upon login:
+
+create user SCOTT identified by oracle#41234
+default tablespace users
+temporary tablespace TEMP
+account unlock 
+profile APP_PROFILE
+password expire;
+
+-- Change password of an user
+
+ALTER USER SCOTT identified by NEW_PWD;
+
+-- Change user profile;
+
+ALTER USER SCOTT PROFILE SIEBEL_PROFILE;
+
+-- Unlock/lock a user
+
+ALTER USER SCOTT account unlock;
+ALTER USER SCOTT account lock;
+
+-- Make sure account expiry, so upon login, it will ask for new one
+
+ALTER USER a124 password expire;
+
+-- Get default tablespace of a user:
+
+set lines 200
+col username for a23
+select username,DEFAULT_TABLESPACE from dba_users where username='SCOTT';
+
+USERNAME               DEFAULT_TABLESPACE
+----------------------- ------------------------------
+SCOTT                          USERS
+
+-- Change default tablespace of a user:
+
+ALTER USER SCOTT DEFAULT TABLESPACE DATATS;
+
+select username,DEFAULT_TABLESPACE from dba_users where username='SCOTT';
+
+USERNAME               DEFAULT_TABLESPACE
+----------------------- ------------------------------
+SCOTT                           DATATS
+
+-- Get the current tablespace quota information of an user
+set lines 299
+select TABLESPACE_NAME,BYTES/1024/1024 "UTILIZIED_SPACE" ,MAX_BYTES/1024/1024 "QUOTA_ALLOCATED" from dba_ts_quotas where username='SCOTT';
+
+TABLESPACE_NAME                                 UTILIZIED_SPACE                  QUOTA_ALLOCATED
+------------------------------         ---------------------------        --------------------------
+USERS                                           .0625                                    1024
+
+--- Change the tablespace quota for the user to 5G
+
+ALTER USER SCOTT QUOTA 5G ON USERS;
+
+--- Grant unlimited tablespace quota:
+
+ALTER USER SCOTT QUOTA UNLIMITED ON USERS;
+
+--- You can connect to another user without knowing the password, with grant connect through privilege
+--- Suppose a user TEST1 wants to connect to TEST2 user and create a table and we don’t know the password of TEST2.
+
+Conn / as sysdba
+SQL >alter user TEST2 grant connect through TEST1;
+
+User altered.
+
+SQL >conn TEST1[TEST2]
+Enter password:< Give password for TEST1>
+
+SQL >show user
+USER is "TEST2"
+SQL >create table emp_test as select * from emp;
+
+Table created.
+
+SQL > conn / as sysdba
+connected
+SQL > select owner from dba_tables where table_name='EMP_TEST';
+
+OWNER
+------
+TEST2
+
+
+
+###########################################################################################
+###########################################################################################
+
+Reset the Password for an Oracle Expired Login or Username to Old or Previous Value
+Sometimes we don’t remember the passwords for some application user/logins which we hard coded in the application. These users/logins password get expired by the aging. Even though the account password is expired the encrypted password values will be stored in the database. There are two ways to find out the encrypted values and reset it to the old value.
+
+
+SQL> SELECT USERNAME, ACCOUNT_STATUS FROM dba_users where username ='TEST';
+
+USERNAME                       ACCOUNT_STATUS
+------------------------------ -----------------------------
+TEST                           EXPIRED
+
+From sys.user$ table
+SQL> select name, password from sys.user$ where name ='TEST';
+
+NAME                           PASSWORD
+------------------------------ ---------------------------
+TEST                           92C5B0023D792E06
+
+From DBA_USERS table
+
+SQL>  
+select extract( xmltype (dbms_metadata.get_xml('USER', username)), '//USER_T/PASSWORD/text()').getStringVal() OldPass from dba_users where username ='TEST';
+
+OLDPASS
+----------------
+92C5B0023D792E06
+
+Now you can easily reset the password by following command and connect the application.
+    SQL> alter user "TEST" identified by values '92C5B0023D792E06';
+
+User altered.
+
+SQL> SELECT USERNAME, ACCOUNT_STATUS FROM dba_users where username ='TEST';
+
+USERNAME                       ACCOUNT_STATUS
+------------------------------ ---------------------------
+TEST                           OPEN

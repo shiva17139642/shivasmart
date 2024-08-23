@@ -1,0 +1,227 @@
+************ CPU UTILIZATION *************:-
+----------------------------------------------------------------------------------------------------------
+top
+
+
+TO CONNECTED USERS ON THAT TIME:---
+-------------------------------
+set lines 200;
+set pages 200;
+col username for a25;
+col machine for a25;
+col osuser for a30;
+select sid,serial#,username,machine,program,osuser from gv$session where username not in ('SYS','SYSTEM','SYSMAN','DBSNMP','NULL','SYSRAC') order by username,MACHINE,PROGRAM,OSUSER;
+
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+SQL id consuming more CPU in Oracle:-
+-------------------------------------
+
+col program form a20 heading "Program"
+col cpu_usage_sec form 99990 heading "CPU in Seconds"
+col MODULE for a15
+col machine for a22
+col OSUSER for a10
+col USERNAME for a15
+col OSPID for a06 heading "OS PID"
+col SID for 99999
+col SERIAL# for 999999
+col SQL_ID for a15
+select * from (
+select p.spid "ospid",
+(se.SID),ss.serial#,ss.SQL_ID,ss.username,substr(ss.program,1,30) "program",
+ss.module,ss.osuser,ss.MACHINE,ss.status,
+se.VALUE/100 cpu_usage_sec
+from v$session ss,v$sesstat se,
+v$statname sn,v$process p
+where
+se.STATISTIC# = sn.STATISTIC#
+and NAME like '%CPU used by this session%'
+and se.SID = ss.SID
+and ss.username !='SYS'
+and ss.status='ACTIVE'
+and ss.username is not null
+and ss.paddr=p.addr and value > 0
+order by se.VALUE desc);
+
+
+-------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+
+Top 10 CPU consuming Session in Oracle  :-
+----------------------------------------
+
+	col program form a30 heading "Program"
+	col CPUMins form 99990 heading "CPU in Mins"
+	select rownum as rank, a.*
+	from (
+	SELECT v.sid,sess.Serial# ,program, v.value / (100 * 60) CPUMins
+	FROM v$statname s , v$sesstat v, v$session sess
+	WHERE s.name = 'CPU used by this session'
+	and sess.sid = v.sid
+	and v.statistic#=s.statistic#
+	and v.value>0
+	ORDER BY v.value DESC) a
+	where rownum < 11;
+
+
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+
+SQL Text top consuming CPU in Oracle :-
+-------------------------------------
+
+col cpu_usage_sec form 99990 heading "CPU in Seconds"
+select * from (
+select
+(se.SID),substr(q.sql_text,80),ss.module,ss.status,se.VALUE/100 cpu_usage_sec
+from v$session ss,v$sesstat se,
+v$statname sn, v$process p, v$sql q
+where
+se.STATISTIC# = sn.STATISTIC#
+AND ss.sql_address = q.address
+AND ss.sql_hash_value = q.hash_value
+and NAME like '%CPU used by this session%'
+and se.SID = ss.SID
+and ss.username !='SYS'
+and ss.status='ACTIVE'
+and ss.username is not null
+and ss.paddr=p.addr and value > 0
+order by se.VALUE desc);
+
+
+
+-------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+TO KNOW SID FROM PROCESS ID:-
+-----------------------------------
+
+SELECT s.sid, s.serial#, s.username, s.status FROM v$session s JOIN v$process p ON (s.paddr = p.addr) WHERE p.spid = 70917;
+
+
+TO KNOW SQL_ID FROM SID:-
+-----------------------------------
+SELECT sql_id
+FROM v$session
+WHERE sid = 551;
+
+
+TO KNOW USERNAME FROM SQL_ID:-
+----------------------------
+
+set lines 200 pages 200;
+col SQL_ID for 99999;
+col OSUSER for a40;
+col MACHINE for a40;
+col SCHEMANAME for a40;
+col USERNAME for a40;
+select SQL_ID,OSUSER,MACHINE,SCHEMANAME,USERNAME from v$session where SQL_ID='4hy3z5vxphx5w';
+
+
+
+
+
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+
+Top CPU Consuming Session in last 10 min:-
+------------------------------------------
+
+select * from
+(
+select session_id, session_serial#, count(*)
+from v$active_session_history
+where session_state= 'ON CPU' and
+sample_time >= sysdate - interval '10' minute
+group by session_id, session_serial#
+order by count(*) desc
+);
+
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+
+**Run the following query to count the number of distinct users connected to the database**:
+ 
+   SELECT COUNT(DISTINCT USERNAME) AS NUM_USERS
+   FROM GV$SESSION
+   WHERE USERNAME IS NOT NULL;
+ 
+   This query counts the number of distinct users by filtering out system sessions (those with `USERNAME` as NULL).
+ 
+**If you want more detailed information about each user, you can run**:
+ 
+   SELECT USERNAME, COUNT(*) AS SESSIONS_PER_USER
+   FROM GV$SESSION
+   WHERE USERNAME IS NOT NULL
+   GROUP BY USERNAME
+   ORDER BY SESSIONS_PER_USER DESC;
+ 
+   This query lists each user and the number of sessions they have, ordered by the number of sessions in descending order.
+ 
+**To get the total number of sessions connected, you can run**:
+ 
+   SELECT COUNT(*) AS TOTAL_SESSIONS
+   FROM GV$SESSION;
+
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+
+
+Use the following script to identify the potentially hung sessions. This script queries the `v$session` and `v$process` views to get details about active sessions:
+ 
+SELECT s.inst_id, s.sid, s.serial#, p.spid, s.username, s.osuser, s.machine, s.program, s.status
+FROM gv$session s, gv$process p
+WHERE s.paddr = p.addr
+AND s.inst_id = p.inst_id
+AND s.status = 'ACTIVE'
+AND s.username IS NOT NULL;
+```
+ 
+### Step 2: Check for Long-Running Sessions
+ 
+You can further filter for long-running sessions which might be hung:
+ 
+SELECT s.inst_id, s.sid, s.serial#, p.spid, s.username, s.osuser, s.machine, s.program, s.status, s.last_call_et
+FROM gv$session s, gv$process p
+WHERE s.paddr = p.addr
+AND s.inst_id = p.inst_id
+AND s.status = 'ACTIVE'
+AND s.username IS NOT NULL
+AND s.last_call_et > 3600;  
+
+-- Sessions running for more than an hour
+ 
+The `last_call_et` column represents the elapsed time (in seconds) since the last call started. Adjust the value as necessary to suit your needs.
+ 
+### Step 3: Kill the Hung Session
+ 
+ 
+Heres an example script that automates the process of identifying and killing long-running sessions:
+ 
+-- Step 1: Identify long-running sessions
+COLUMN inst_id FORMAT 9999
+COLUMN sid FORMAT 9999
+COLUMN serial# FORMAT 999999
+COLUMN spid FORMAT a10
+COLUMN username FORMAT a15
+COLUMN osuser FORMAT a15
+COLUMN machine FORMAT a20
+COLUMN program FORMAT a30
+COLUMN status FORMAT a10
+COLUMN last_call_et FORMAT 999999 
+SELECT s.inst_id, s.sid, s.serial#, p.spid, s.username, s.osuser, s.machine, s.program, s.status, s.last_call_et
+FROM gv$session s, gv$process p
+WHERE s.paddr = p.addr
+AND s.inst_id = p.inst_id
+AND s.status = 'ACTIVE'
+AND s.username IS NOT NULL
+AND s.last_call_et > 3600;
+ 
+-- Step 2: Kill identified sessions (adjust SID, SERIAL#, and INST_ID as needed)
+ALTER SYSTEM KILL SESSION 'SID,SERIAL#,@INST_ID' IMMEDIATE;
+```
+ 
+ 
+  SELECT INST_ID, SID, SERIAL#, USERNAME, STATUS, MACHINE
+   FROM GV$SESSION
+   WHERE STATUS = 'ACTIVE';

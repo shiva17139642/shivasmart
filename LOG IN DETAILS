@@ -1,0 +1,239 @@
+SELECT LAST_UPDATED_TIME,LSTU FROM "LIBERTYDB"."INFOBJ_FLIGHT" order by LSTU asc ;
+
+
+SELECT LAST_UPDATED_TIME,LSTU FROM "LIBERTYDB"."INFOBJ_FLIGHT" order by LSTU desc offset 1 rows fetch next 10 rows only ;
+
+TO KNOW DB SIZE:--
+------------------
+SELECT ROUND(SUM(bytes) / (1024 * 1024 * 1024), 2) AS db_size_gb
+FROM dba_data_files;
+
+PAM LOGIN :-
+------------
+shiva_P
+
+Y9aevyMg@)!&^2
+
+Y9aevyMg@)!&^2
+
+----------------------------------------------
+----------------------------------------------
+
+Username: appteam1
+Password: Ap@Te89m%1
+ 
+Username: appteam2
+Password: Te@m902A$2
+----------------------------------------------
+----------------------------------------------
+
+VPN LOGIN:-
+--------------
+$Waisl@2023
+
+
+VPN ACCOUNT:-
+--------------
+GHIALJUMPSRV1\Appadmin
+P@ssw0rd@2023
+
+ 
+----------------------------------------------
+----------------------------------------------
+
+OEM:--
+----------------------------
+https://10.102.153.31:7803/em
+sysman
+oem123$a
+----------------------------------------------
+
+ORACLE SUPPORT:-
+-------------------
+ghial.appsupport@waisl.in
+Oracle@123$a
+
+-----------------------------------------------
+
+sys passwords:-
+---------------
+Oracle123
+
+Data123
+
+sys passwords:-
+---------------
+Database_AdmIniStration_200124 @IMBDBdatabase
+
+------------------------------------------------
+cdc1 Primary log in:-
+
+10.102.117.11
+10.102.117.12
+10.102.123.11
+10.102.123.12
+10.102.123.4
+10.102.123.5
+
+username:-
+oracle
+oracle@123
+
+Grid password:-
+grid
+grid@123
+
+--
+adm!n_r00t
+-------------------------------------------------------
+---------------------------------------------------------
+cdc2 Standby log in:-
+
+10.102.217.11
+10.102.217.12
+10.102.223.11
+10.102.223.12
+
+username:-
+oracle
+Oracle@2022
+
+Grid password:-
+Grid@2022
+
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+RAC AWR REPORT:-
+---------------
+@?/rdbms/admin/awrgrpt.sql
+ 
+ 
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+ If in restricted mode then disable the restricted session:-
+SQL> 
+alter system disable restricted session;
+
+If in Read only mode then open the database:-
+SQL> 
+alter database activate standby database;
+	
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+Actual Issue: Request to share health status of all Oracle Databases.
+
+Confirmation Taken From: pavankumar.panda
+
+Resolution Done: Request to share health status of all Oracle Databases has been successfully done.
+
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+
+Actual Issue: Need to gather statistics for AMSPRD database and Index Rebuild (10.102.117.11/12).
+
+Confirmation Taken From: pavankumar.panda
+
+Resolution Done: Gather statistics for AMSPRD database and Index Rebuild (10.102.117.11/12) has been successfully done.
+
+
+
+
+
+Actual Issue:
+
+Request to build data-guard for IMBDB and Liberty DB in cdc2 environment at PTB
+Request to import data from production AMSPRD(117.11) DB environment to the staging AMSSTG DB (117.4/5) environment​
+
+
+
+Confirmation Taken From:
+
+pavankumar.panda
+
+
+
+Resolution Done:
+
+Requested import data from production AMSPRD(117.11) DB environment to the staging AMSSTG DB (117.4/5) environment​
+has been successfully done.
+
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+1. **View active sessions:**
+
+   SELECT INST_ID, SID, SERIAL#, USERNAME, STATUS, MACHINE
+   FROM GV$SESSION
+   WHERE STATUS = 'ACTIVE';
+ 
+2. **Count the number of sessions per instance:**
+
+   SELECT INST_ID, COUNT(*) AS NUM_SESSIONS
+   FROM GV$SESSION
+   GROUP BY INST_ID;
+ 
+3. **View sessions waiting on specific events:**
+
+   SELECT INST_ID, SID, SERIAL#, EVENT, WAIT_TIME, SECONDS_IN_WAIT
+   FROM GV$SESSION_WAIT
+   WHERE WAIT_TIME > 0;
+ 
+4. **View blocked and blocking sessions:**
+
+   SELECT
+       A.INST_ID,
+       A.SID AS BLOCKED_SID,
+       A.SERIAL# AS BLOCKED_SERIAL,
+       B.SID AS BLOCKING_SID,
+       B.SERIAL# AS BLOCKING_SERIAL
+   FROM GV$SESSION A, GV$SESSION B
+   WHERE A.BLOCKING_SESSION = B.SID;
+ 
+5. **Find the top SQL statements by CPU usage:**
+
+   SELECT INST_ID, SQL_ID, SUM(CPU_TIME) AS TOTAL_CPU_TIME
+   FROM GV$SQLAREA
+   GROUP BY INST_ID, SQL_ID
+   ORDER BY TOTAL_CPU_TIME DESC
+   FETCH FIRST 10 ROWS ONLY;
+   
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+ 
+CSV file generation :----
+-------------------
+ 
+cat exp_PRODDTA_SCHEMA_11_02_23.log|grep -i exported|sort -k 4 |awk '{print $7" "$10}' >export_PRODDTA_31_03_2023.csv
+ 
+ 
+cat IMP_PRODDTA_PPYDTA_SCHEMA_31_03_2023.log|grep -i imported|sort -k 4 |awk '{print $7" "$10}'  >import_PPYDTA_31_03_2023.csv
+ 
+ 
+ 
+cat exp_PRODCTL_SCHEMA_11_02_23.log|grep -i exported|sort -k 4 |awk '{print $7" "$10}'  >export_PRODCTL_31_03_2023.csv
+ 
+cat IMP_PRODCTL_PPYCTL_SCHEMA_31_03_2023.log|grep -i imported|sort -k 4 |awk '{print $4" "$7}'  >import_PPYCT_31_03_2023.csv
+ 
+ 
+Excel row formula for Difference column:
+=IF(B2=E2,"Match","No match")
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+
+List database links :---
+--------------------
+set lines 180 pages 999;
+col owner for a15;
+col DB_LINK for a35;
+col USERNAME for a15;
+col HOST for a39;
+col CREATION_DATE for a20;
+select owner, db_link, username, host , to_char(created,'MM/DD/YYYY HH24:MI:SS') creation_date from dba_db_links;
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+
+Actual Issue: create user “MONITORDB” In all Oracle Databases.
+
+Confirmation Taken From: pavankumar.panda
+
+Resolution Done: create user “MONITORDB” In all Oracle Databases has been successfully done.
+

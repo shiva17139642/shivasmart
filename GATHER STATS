@@ -1,0 +1,233 @@
+CC###GATHER STATS:-(Weekly Twice only)
+-----------------------
+set lines 200 pages 200;
+select name,INSTANCE_NUMBER,INSTANCE_NAME,STATUS,OPEN_MODE,switchover_status from gv$instance a,gv$database b  where a.inst_id=b.inst_id;
+
+TO KNOW HISTORY OF GAHER STATS:-
+----------------------------------
+set lines 200 pages 200;
+col target for a33;
+col operation for a33;
+col start_time for a33;
+col end_time for a22;
+col status for a33;
+SELECT operation,
+       target,
+       start_time,
+       end_time,
+       status
+FROM   dba_optstat_operations
+ORDER BY start_time DESC;
+ 
+
+
+
+col TABLE_NAME for a30;
+col owner for a30; 
+SET LINES 200 PAGES 200;
+select owner,table_name,last_analyzed from dba_tables where table_name in ('FOM_LEG_DATA','AAA_SESSION');
+
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+
+We need to check any fragmentations available or not, 
+Command to check the INDEX - It will show the indexes, which are taking more than 25%
+
+###FOR GATHER STATS ###:-
+
+-- select only those indexes with an estimated space saving percent greater than 25%
+VAR savings_percent NUMBER;
+EXEC :savings_percent := 25;
+-- select only indexes with current size (as per cbo stats) greater then 1MB
+VAR minimum_size_mb NUMBER;
+EXEC :minimum_size_mb := 1;
+SET SERVEROUT ON ECHO OFF FEED OFF VER OFF TAB OFF LINES 300;
+COL report_date NEW_V report_date;
+SELECT TO_CHAR(SYSDATE, 'YYYY-MM-DD"T"HH24:MI:SS') report_date FROM DUAL;
+SPO /tmp/indexes_2b_shrunk_&&report_date..txt;
+DECLARE
+l_used_bytes NUMBER;
+l_alloc_bytes NUMBER;
+l_percent NUMBER;
+BEGIN
+DBMS_OUTPUT.PUT_LINE('PDB: '||SYS_CONTEXT('USERENV', 'CON_NAME'));
+DBMS_OUTPUT.PUT_LINE('---');
+DBMS_OUTPUT.PUT_LINE(
+RPAD('INDEX_NAME', 35)||' '||
+RPAD('TABLE_NAME', 35)||' '||
+LPAD('SAVING %', 10)||' '||
+LPAD('CURRENT SIZE', 20)||' '||
+LPAD('ESTIMATED SIZE', 20));
+DBMS_OUTPUT.PUT_LINE(
+RPAD('-', 35, '-')||' '||
+LPAD('-', 10, '-')||' '||
+LPAD('-', 20, '-')||' '||
+LPAD('-', 20, '-'));
+FOR i IN (SELECT x.owner,x.table_name, x.index_name, SUM(s.leaf_blocks) * TO_NUMBER(p.value) index_size,
+REPLACE(DBMS_METADATA.GET_DDL('INDEX',x.index_name,x.owner),CHR(10),CHR(32)) ddl
+FROM dba_ind_statistics s, dba_indexes x, dba_users u, v$parameter p
+WHERE u.oracle_maintained = 'N'
+AND x.owner = u.username
+AND x.tablespace_name NOT IN ('SYSTEM','SYSAUX')
+AND x.index_type LIKE '%NORMAL%'
+AND x.table_type = 'TABLE'
+AND x.status = 'VALID'
+AND x.temporary = 'N'
+AND x.dropped = 'NO'
+AND x.visibility = 'VISIBLE'
+AND x.segment_created = 'YES'
+AND x.orphaned_entries = 'NO'
+AND p.name = 'db_block_size'
+AND s.owner = x.owner
+AND s.index_name = x.index_name
+GROUP BY
+x.owner, x.table_name,x.index_name, p.value
+HAVING
+SUM(s.leaf_blocks) * TO_NUMBER(p.value) > :minimum_size_mb * POWER(2,20)
+ORDER BY
+index_size DESC)
+LOOP
+DBMS_SPACE.CREATE_INDEX_COST(i.ddl,l_used_bytes,l_alloc_bytes);
+IF i.index_size * (100 - :savings_percent) / 100 > l_alloc_bytes THEN
+l_percent := 100 * (i.index_size - l_alloc_bytes) / i.index_size;
+DBMS_OUTPUT.PUT_LINE(
+RPAD(i.owner||'.'||i.index_name, 35)||' '||
+RPAD(i.table_name, 35)||' '||
+LPAD(TO_CHAR(ROUND(l_percent, 1), '990.0')||' % ', 10)||' '||
+LPAD(TO_CHAR(ROUND(i.index_size / POWER(2,20), 1), '999,999,990.0')||' MB', 20)||' '||
+LPAD(TO_CHAR(ROUND(l_alloc_bytes / POWER(2,20), 1), '999,999,990.0')||' MB', 20));
+END IF;
+END LOOP;
+END;
+/
+
+
+
+
+
+
+---------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+AMSPRD:----
+
+
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNAFVPRD_AIR_HYD_P1"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNAMGPRD"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNAMGPRD_AIR_HYD_P1"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNCORPRD"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNFDSPRD"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNAMGPRD"', method_opt=>'  for all columns size 1 ');            
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNFDSPRD_AIR_HYD_P1"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNFIDPRD"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNFOMPRD"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNFOMPRD_AIR_HYD_P1"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNMSCPRD"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNMSCPRD_AIR_HYD_P1"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNSDSPRD"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNSDSPRD_AIR_HYD_P1"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNSGAPRD"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNSGAPRD_AIR_HYD_P1"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNVIPPRD"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"OWNVIPPRD_AIR_HYD_P1"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"SDSPRD"', method_opt=>'  for all columns size 1 ');
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"SGAPRD"', method_opt=>'  for all columns size 1 ');
+
+
+
+IMBDB:-
+
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"IMBDB"', method_opt=>'  for all columns size 1 ');
+
+
+
+LIBERTYDB:-
+
+exec dbms_stats.gather_schema_stats( options=>'gather stale',estimate_percent=>10,degree=>8,no_invalidate=>true,cascade=>true,ownname=>'"LIBERTYDB"', method_opt=>'  for all columns size 1 ');
+
+--------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------
+
+TO REBUILD THE index:-
+-----------------------
+
+SELECT index_name, index_type, uniqueness FROM all_indexes WHERE owner = UPPER('&owner') AND table_name = UPPER('&table_name');
+
+
+Here we have to select the name of the owner and name of the table.
+
+alter index OWNFOMPRD_AIR_HYD_P1.IDX_FOM_LEG_PA rebuild online parallel 8;
+
+
+
+
+--------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------
+###To create script for gather stats:-
+-----------------------------------
+
+#!/bin/bash
+
+. /home/oracle/.bash_profile
+
+export ORACLE_HOME=/u01/app/oracle/product/19.3/db_home
+export ORACLE_BASE=/u01/app/oracle
+export ORACLE_SID=orcl
+export DATE=$(date +%y-%m-%d_%H%M%S)
+
+#### Gather HR schema stats ####
+sqlplus / as sysdba << EOF > /tmp/HR_stats_gather_$DATE.log
+EXEC DBMS_STATS.gather_schema_stats('HR');
+EOF
+
+----------------------------------------------------------------------
+**DBA_TAB_STATS_HISTORY**: This view contains historical information about table statistics.
+
+
+
+set lines 200 pages 200;
+SELECT table_name,
+       stats_update_time
+FROM   dba_tab_stats_history
+WHERE  owner = 'SCHEMA_NAME'
+ORDER BY stats_update_time DESC;
+
+**DBA_TAB_COL_STATISTICS**: This view shows detailed statistics for table columns.
+
+SELECT owner,
+       table_name,
+       column_name,
+       num_distinct,
+       num_nulls,
+       last_analyzed
+FROM   dba_tab_col_statistics
+WHERE  owner = 'SCHEMA_NAME'
+ORDER BY last_analyzed DESC;
+
+**DBA_OPTSTAT_OPERATIONS**: This view logs all the statistics operations.
+
+
+set lines 200 pages 200;
+col target for a33;
+col operation for a33;
+col start_time for a33;
+col end_time for a22;
+col status for a33;
+SELECT operation,
+       target,
+       start_time,
+       end_time,
+       status
+FROM   dba_optstat_operations
+ORDER BY start_time DESC;
+
+**DBA_OPTSTAT_HISTORY**: This view provides a history of optimizer statistics operations.
+
+SELECT operation,
+       target,
+       start_time,
+       end_time,
+       status
+FROM   dba_optstat_history
+ORDER BY start_time DESC;
+
+

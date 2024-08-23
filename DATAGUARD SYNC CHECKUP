@@ -1,0 +1,190 @@
+###Check the status of database :-
+--------------------------------------------
+ps -ef|grep smon
+
+sysctl -a 2>/dev/null | grep "\.rp_filter"
+
+export ORACLE_SID=AMSPRD1
+
+sqlplus / as sysdba
+
+set lines 200 pages 200;
+select name,INSTANCE_NUMBER,INSTANCE_NAME,STATUS,OPEN_MODE,switchover_status from gv$instance a,gv$database b  where a.inst_id=b.inst_id;
+
+
+primary>
+set lines 300 pages 300;
+col DB_UNIQUE_NAME for a10;
+select name,db_unique_name,open_mode,DATABASE_ROLE,PROTECTION_MODE,SWITCHOVER#,SWITCHOVER_status,current_scn from v$database;
+
+
+to know the gap status.
+
+primary>
+select STATUS, GAP_STATUS from V$ARCHIVE_DEST_STATUS where DEST_ID = 2;
+
+standby>
+select NAME, VALUE, DATUM_TIME from V$DATAGUARD_STATS;
+
+
+IN PRIMARY CHECK UP:-
+---------------------
+
+archive log list;
+
+alter system archive log current;
+
+
+set lines 200
+col destination for a11
+col error for a20
+select destination,applied_seq#,archived_seq#,gap_status,error from v$archive_dest_status where dest_id=2;
+
+
+For gap checkup in primary:-
+---------------------------
+
+set scan on
+set feed off
+set linesize 200
+BREAK ON ROW SKIP 1s
+column thread format a6;
+column "PR - Archived" format a13;
+column "STBY - Archived" format a15;
+column "STBY - Applied" format a14;
+column "Shipping GAP (PR -> STBY)" format a25;
+column "Applied GAP (STBY -> STBY)" format a26;
+--ACCEPT DEST PROMPT 'Enter the Standby Archive Log Destination :  '
+SELECT   *
+    FROM   (SELECT   LPAD (t1, 4, ' ') "Thread",
+                     LPAD (pricre, 9, ' ') "PR - Archived",
+                     LPAD (stdcre, 10, ' ') "STBY - Archived",
+                     LPAD (stdnapp, 9, ' ') "STBY - Applied",
+                     LPAD (pricre - stdcre, 13, ' ')
+                        "Shipping GAP (PR -> STBY)",
+                     LPAD (stdcre - stdnapp, 15, ' ')
+                        "Applied GAP (STBY -> STBY)"
+              FROM   (  SELECT   MAX (sequence#) stdcre, thread# t1
+                          FROM   v$archived_log
+                         WHERE   standby_dest = 'YES'
+                                 AND resetlogs_id IN
+                                          (SELECT   MAX (RESETLOGS_ID)
+                                             FROM   v$archived_log)
+                                 AND thread# IN (1, 2, 3, 4)
+                      GROUP BY   thread#) a,
+                     (  SELECT   MAX (sequence#) stdnapp, thread# t2
+                          FROM   v$archived_log
+                         WHERE   standby_dest = 'YES'
+                                 AND resetlogs_id IN
+                                          (SELECT   MAX (RESETLOGS_ID)
+                                             FROM   v$archived_log)
+                                 AND thread# IN (1, 2, 3, 4)
+                                 AND applied = 'YES'
+                      GROUP BY   thread#) b,
+                     (  SELECT   MAX (sequence#) pricre, thread# t3
+                          FROM   v$archived_log
+                         WHERE   standby_dest = 'NO'
+                                 AND resetlogs_id IN
+                                          (SELECT   MAX (RESETLOGS_ID)
+                                             FROM   v$archived_log)
+                                 AND thread# IN (1, 2, 3, 4)
+                      GROUP BY   thread#) c
+             WHERE   a.t1 = b.t2 AND b.t2 = c.t3 AND c.t3 = a.t1)
+ORDER BY   1
+/
+set feed on
+break on off
+
+
+
+
+
+----------------- -------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------
+Finally verfication this primary enable or not:-
+-------------------------------------------------
+
+alter system set log_archive_dest_state_2=defer scope=both sid='*';
+
+alter system set log_archive_dest_state_2=enable scope=both sid='*';
+
+-----------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+
+IN STANDBY CHECK UP:-
+----------------------
+SELECT ARCH.THREAD# "Thread", ARCH.SEQUENCE# "Last Sequence Received", APPL.SEQUENCE# "Last Sequence Applied", (ARCH.SEQUENCE# - APPL.SEQUENCE#) "Difference"
+          FROM
+         (SELECT THREAD# ,SEQUENCE# FROM V$ARCHIVED_LOG WHERE (THREAD#,FIRST_TIME ) IN (SELECT THREAD#,MAX(FIRST_TIME) FROM V$ARCHIVED_LOG GROUP BY THREAD#)) ARCH,
+         (SELECT THREAD# ,SEQUENCE# FROM V$LOG_HISTORY WHERE (THREAD#,FIRST_TIME ) IN (SELECT THREAD#,MAX(FIRST_TIME) FROM V$LOG_HISTORY GROUP BY THREAD#)) APPL
+         WHERE
+         ARCH.THREAD# = APPL.THREAD#
+          ORDER BY 1;
+
+
+--------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------
+set lines 300 pages 300;
+SELECT sequence#, first_time, next_time, applied FROM v$archived_log ORDER BY sequence#;
+
+----------------------------------------------------------------------------------------------
+set lines 100;
+set pages 100;
+select status,process,thread#,SEQUENCE#,block#,blocks from v$managed_standby;
+
+
+--------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------
+
+select LOG_ARCHIVED-LOG_APPLIED "LOG_GAP" from
+(SELECT MAX(SEQUENCE#) LOG_ARCHIVED
+FROM V$ARCHIVED_LOG WHERE DEST_ID=1 AND ARCHIVED='YES'),
+(SELECT MAX(SEQUENCE#) LOG_APPLIED
+FROM V$ARCHIVED_LOG WHERE DEST_ID=2 AND APPLIED='YES');
+
+
+SELECT ARCH.THREAD# "Thread", ARCH.SEQUENCE# "Last Sequence Received", APPL.SEQUENCE# "Last Sequence Applied", (ARCH.SEQUENCE# - APPL.SEQUENCE#) "Difference" FROM (SELECT THREAD# ,SEQUENCE# FROM V$ARCHIVED_LOG WHERE (THREAD#,FIRST_TIME ) IN (SELECT THREAD#,MAX(FIRST_TIME) FROM V$ARCHIVED_LOG GROUP BY THREAD#)) ARCH,(SELECT THREAD# ,SEQUENCE# FROM V$LOG_HISTORY WHERE (THREAD#,FIRST_TIME ) IN (SELECT THREAD#,MAX(FIRST_TIME) FROM V$LOG_HISTORY GROUP BY THREAD#)) APPL WHERE ARCH.THREAD# = APPL.THREAD# ORDER BY 1;
+-----------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------
+select   thread#, max(sequence#) "Last Primary Seq Generated"
+from     v$archived_log val, v$database vdb
+where    val.resetlogs_change# = vdb.resetlogs_change#
+group by thread# order by 1;
+
+
+------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------
+###If it is out of sync, down the MRP
+
+alter database recover managed standby database cancel;
+
+###If it is not running start the MRP:-
+
+alter database recover managed standby database disconnect from session;
+
+###select the status of the MRP:-
+
+select status,process,thread#,SEQUENCE#,block#,blocks from v$managed_standby;
+
+###Check the archivelogs:-
+
+asmcmd
+lsdg
+cd ARCHIVES
+ls -lart
+cd amsprdstby
+cd archivelog
+ls -lart
+
+---------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+
+show parameter DB_UNIQUE_NAME=PRIM
+show parameter LOG_ARCHIVE_CONFIG='DG_CONFIG=(PRIM,STANBY)'
+show parameter LOG_ARCHIVE_DEST_1='LOCATION=/arch1/ VALID_FOR=(ALL_LOGFILES,ALL_ROLES) DB_UNIQUE_NAME=PRIM'  sid='*' scope=both;
+show parameter LOG_ARCHIVE_DEST_2='SERVICE=STANBY VALID_FOR=(ONLINE_LOGFILES,PRIMARY_ROLE) DB_UNIQUE_NAME=STANBY'
+show parameter LOG_ARCHIVE_DEST_STATE_1=ENABLE
+show parameter LOG_ARCHIVE_DEST_STATE_2=ENABLE
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------

@@ -1,0 +1,161 @@
+#### TO STOP THE DATABASE ####:-
+
+srvctl stop database -d PRODB -o normal
+srvctl stop database -d PRODB -o immediate
+srvctl stop database -d PRODB -o transactional
+srvctl stop database -d PRODB -o abort
+
+
+#### TO START THE DATABASE ####:-
+
+srvctl start database -d PRODB -o nomount
+srvctl start database -d PRODB -o mount
+srvctl start database -d PRODB -o open
+
+
+#### TO STOP THE INSTANCE ####:-
+
+srvctl stop instance -d PRODB -i IMBDBSTBY1
+srvctl status instance -d PRODB -i IMBDBSTBY1
+srvctl enable instance -d IMBDB -i IMBDBSTBY1
+srvctl disable instance -d  IMBDB -i IMBDBSTBY1
+srvctl enable database -d DB_UNIQUE_NAME
+srvctl disable database -d DB_UNIQUE_NAME
+
+srvctl config scan_listener
+srvctl config service -d IMBDB
+srvctl modify scan_listener -p {new-SCAN-port}
+srvctl modify scan_listener -p 1523
+
+$GRID_HOME/bin/srvctl stop scan_listener
+$GRID_HOME/bin/srvctl start scan_listener
+Alter system set remote_listener='orcl-scan.stc.com.sa:1523' scope=both sid='*';
+ 
+********************************************************
+
+alter system set LOCAL_LISTENER='LISTENER_LOCAL1' scope=both sid='Instance1';
+alter system set LOCAL_LISTENER='LISTENER_LOCAL2' scope=both sid='Instance2';
+alter system set REMOTE_LISTENER='LISTENERS_REMOTE' scope=both;
+
+alter system set local_listener='(ADDRESS_LIST=(ADDRESS = (PROTOCOL = TCP)(HOST = 10.102.123.16)(PORT = 1521))(ADDRESS = (PROTOCOL = TCP)(HOST = 10.102.123.17)(PORT = 1521)))' scope=both;
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+
+srvctl add service -d IMBDB -s imbdbdc1 -r IMBDB1 -a IMBDB2 -p BASIC -e session -m basic -z 10 -w 1
+
+srvctl config service -db IMBDB
+ 
+srvctl modify service -d IMBDB -s IMBDBDC1 -l PRIMARY
+
+srvctl modify service -db IMBDB -service imbdbdc1 -failovermethod BASIC -failovertype SELECT -notification TRUE -clbgoal LONG
+
+-----------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------
+srvctl add service -d IMBDB -s imbdbdc1 -r IMBDB1 -a IMBDB2 -p BASIC -e session -m basic -z 10 -w 1
+
+srvctl config service -db IMBDB
+ 
+srvctl modify service -db IMBDB -service imbdbdc1 -failovermethod BASIC -failovertype SELECT -notification TRUE -clbgoal LONG
+
+srvctl modify service -db IMBDBSTBY -service imbdbdc1 -failovermethod BASIC -failovertype SELECT -notification TRUE -clbgoal LONG
+
+srvctl modify service -db hydamsst  -s hydams -n -i hydamsst1,hydamsst2
+
+srvctl modify service -db IMBDB -service imbdbdc1 -preferred "IMBDB1,IMBDB2" -tafpolicy BASIC
+
+col failover_method for a15;
+col failed_over for a12;
+select failover_type, failover_method, failed_over from v$session where sid=sys_context('userenv', 'sid');
+
+-----------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------
+Check that the service is running:-
+----------------------------------
+srvctl config service -db TAF
+
+Service name: IMBDBDC1
+Server pool:
+Cardinality: 2
+Service role: PRIMARY
+Management policy: AUTOMATIC
+DTP transaction: false
+AQ HA notifications: true
+Global: false
+Commit Outcome: false
+Failover type: SELECT
+Failover method: BASIC
+Failover retries:
+Failover delay:
+Failover restore: NONE
+Connection Load Balancing Goal: LONG
+Runtime Load Balancing Goal: NONE
+TAF policy specification: BASIC
+Edition:
+Pluggable database name:
+Hub service:
+Maximum lag time: ANY
+SQL Translation Profile:
+Retention: 86400 seconds
+Replay Initiation Time: 300 seconds
+Drain timeout:
+Stop option:
+Session State Consistency: DYNAMIC
+GSM Flags: 0
+Service is enabled
+Preferred instances: IMBDB1,IMBDB2
+Available instances:
+CSS critical: no
+Service uses Java: false
+
+Service name: IMBDBDC2
+Server pool:
+Cardinality: 2
+Service role: PRIMARY
+Management policy: AUTOMATIC
+DTP transaction: false
+AQ HA notifications: true
+Global: false
+Commit Outcome: false
+Failover type: SELECT
+Failover method: BASIC
+Failover retries:
+Failover delay:
+Failover restore: NONE
+Connection Load Balancing Goal: LONG
+Runtime Load Balancing Goal: NONE
+TAF policy specification: NONE
+Edition:
+Pluggable database name:
+Hub service:
+Maximum lag time: ANY
+SQL Translation Profile:
+Retention: 86400 seconds
+Replay Initiation Time: 300 seconds
+Drain timeout:
+Stop option:
+Session State Consistency: DYNAMIC
+GSM Flags: 0
+Service is enabled
+Preferred instances: IMBDB1,IMBDB2
+Available instances:
+CSS critical: no
+Service uses Java: false
+
+**********************************************************************************************************
+**********************************************************************************************************
+Need to add the listener you can as Grid user from any one node:-
+
+srvctl add listener -listener <<LISTENER NAME >> -p "TCP:<<PORT>>"
+srvctl start listener -listener <<LISTENER NAME >>
+
+
+
+You can choose to remove the listener :-
+---------------------------------------
+
+srvctl remove listener -l LIBERTYDB_LISTENER -force
+srvctl remove listener -l IMBDB_LISTENER -force
+srvctl remove listener -l BAWDB_LISTENER -force
+
+########################################################################################################
+########################################################################################################

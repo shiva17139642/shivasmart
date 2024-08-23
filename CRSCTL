@@ -1,0 +1,110 @@
+Check all the resources of cluster:-
+-----------------------------------
+
+crsctl --help
+
+       crsctl add       - add a resource, type or other entity
+       crsctl check     - check the state or operating status of a service, resource, or other entity
+       crsctl config    - display automatic startup configuration
+       crsctl create    - display entity creation options
+       crsctl debug     - display or modify debug state
+       crsctl delete    - delete a resource, type or other entity
+       crsctl disable   - disable automatic startup
+       crsctl discover  - discover DHCP server
+       crsctl enable    - enable automatic startup
+       crsctl eval      - evaluate operations on resource or other entity without performing them
+       crsctl export    - export entities
+       crsctl get       - get an entity value
+       crsctl getperm   - get entity permissions
+       crsctl lsmodules - list debug modules
+       crsctl modify    - modify a resource, type or other entity
+       crsctl pin       - make the leases of specified nodes immutable
+       crsctl query     - query service state
+       crsctl release   - release a DHCP lease
+       crsctl relocate  - relocate a resource, server or other entity
+       crsctl replace   - change the location of voting files
+       crsctl request   - request a DHCP lease or an action entry point
+       crsctl set       - set an entity value
+       crsctl setperm   - set entity permissions
+       crsctl start     - start a resource, server or other entity
+       crsctl status    - get status of a resource or other entity
+       crsctl stop      - stop a resource, server or other entity
+       crsctl unpin     - make the leases of previously pinned nodes mutable
+       crsctl unset     - unset an entity value, restoring its default
+	   
+cd $GRID_HOME/bin:-
+------------------
+
+crsctl stat res -t
+
+crsctl check crs
+
+crsctl check cssd
+
+crsctl check crsd
+
+crsctl check evmd
+
+
+clusterware version:-
+----------------------
+crsctl query crs softwareversion 
+
+voting disk location:-
+----------------------
+crsctl query css votedisk
+
+Find OCR location:-
+-------------------
+ocrcheck
+
+Find cluster interconnect details:-
+---------------------------------
+oifcfg getif
+
+Check CRS status of local node:-
+------------------------------ 
+crsctl check crs
+
+Check status of all crs resourcs:-
+----------------------------------
+crsctl stat res -t
+crsctl stat res -t -init
+
+Check CRS status of remote nodes:-
+----------------------------------
+crsctl check cluster -all
+
+Disk timeout from node to voting disk(disktimeout):-
+--------------------------------------------------
+crsctl get css disktimeout
+
+
+Network latency in the node interconnect (Misscount):-
+---------------------------------------------------
+crsctl get css misscount
+
+ocr disk backup details:-
+-------------------------
+ocrconfig -showbackup
+ocrconfig -manualbackup
+
+check crs configuration:-
+-------------------------
+crsctl config crs
+
+find all nodes in a cluster:-
+----------------------------
+crsctl get node role status -all
+
+to shutdown (in all 3 nodes):-
+-----------------------------
+srvctl stop database -d <db_unique_name>
+crsctl stop cluster -all
+crsctl stop crs -all
+crsctl stop crs
+
+to startup (in all 3 nodes)
+crsctl start crs -all
+crsctl start cluster -all
+srvctl start database -d <db_unique_name>

@@ -1,0 +1,39 @@
+######### Action plan on problem node #########
+
+1. crsctl stop crs -f
+
+2.Remove socket files
+
+# rm -rf /usr/tmp/.oracle/* /var/tmp/.oracle/* /tmp/.oracle/* ( do not remove .oracle directory )
+
+3. Reboot the node
+
+4. Verify whether cluster has been started
+
+5. crsctl stat res -t -init
+
+crsctl stat res -t
+
+ps -ef|grep d.bin
+
+ps -ef|grep pmon
+
+
+srvctl modify service -d IMBDB -s imbdbdc2 -m BASIC -e SELECT -q TRUE -j LONG
+
+
+col NAME for a30;
+col failover_method for a30;
+col failover_type for a30;
+select name, failover_method, failover_type, failover_retries,goal, clb_goal,aq_ha_notifications
+from dba_services ;
+
+srvctl modify service -db IMBDB -service imbdbdc1 -preferred ORCLDB1 -available ORCLDB2 -tafpolicy BASIC -failovertype SELECT srvctl start service -db IMBDB -service imbdbdc1
+
+srvctl add service -d IMBDB -s imbdbdc1 -r IMBDB1 -a IMBDB2 -p BASIC -e session -m basic -z 10 -w 1
+
+srvctl modify  service -d IMBDB -s imbdbdc1 -r "IMBDB1,IMBDB2" -P BASIC
+
+select name, failover_method, failover_type, failover_retries,goal, clb_goal,aq_ha_notifications from dba_services where name = 'imbdbdc1';
+
+

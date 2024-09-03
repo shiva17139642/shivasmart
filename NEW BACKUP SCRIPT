@@ -1,0 +1,41 @@
+export Backup_Location='+BACKUP/IMBDBSTBY/%U'
+export ORACLE_SID=IMBDBSTBY1
+export ORACLE_BASE=/u02/app/oracle
+export ORACLE_HOME=/u02/app/oracle/product/19.3.0/dbhome_1
+export DATE=$(date +%y-%m-%d_%H%M%S)
+export PATH=/usr/sbin:$PATH
+export PATH=$ORACLE_HOME/bin:$PATH
+
+
+rman target /  log=/u02/backup/RMAN_backup.log << EOF
+
+run
+{
+allocate channel ch1 device type disk;
+allocate channel ch2 device type disk;
+sql 'ALTER SYSTEM ARCHIVE LOG CURRENT';
+crosscheck backup;
+CROSSCHECK ARCHIVELOG ALL;
+backup incremental level 0 as compressed backupset database archivelog all format '+BACKUP/IMBDBSTBY/%d_%T_%U'';
+backup current controlfile format '+BACKUP/IMBDBSTBY/contrl_%d_%T_%U';
+DELETE NOPROMPT backup completed before 'sysdate-1';
+DELETE NOPROMPT archivelog all completed before 'sysdate-1';
+release channel ch1;
+release channel ch2;
+}
+EOF
+
+-------------------------------------------
+
+run
+{
+crosscheck backup;
+crosscheck archivelog all;
+delete noprompt expired backup;
+delete noprompt obsolete;
+allocate channel d1 device type disk format '+BACKUP/IMBDBSTBY/%d_%T_%U';
+backup incremental level 0 as compressed backupset database archivelog all tag Full_backup ;
+database include current controlfile;
+delete noprompt archivelog all completed before 'sysdate -1';
+}
+EOF

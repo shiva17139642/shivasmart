@@ -1,0 +1,71 @@
+Switching over a database
+
+Switching over a database in Oracle involves transitioning from the primary database to a standby database. Here are basic steps for a manual switchover:
+ 
+1. **Check Prerequisites:**
+      - Verify that the databases are running in ARCHIVELOG mode :-
+ 
+      - Confirm the Data Guard configuration is properly set up :-
+ 
+      - Ensure both primary and standby databases are in sync :-
+  
+Query on standby( database for applied archivelogs and compare it with primary archives.
+
+2. **Connect to the Primary Database:**
+   - Connect to the primary database using SQL*Plus or another SQL client.
+ 
+3. **Check Switchover Readiness:**
+   - Verify the readiness of the standby database for switchover:
+   - First we should know the database name, role, dB unique name, mode IN BOTH SIDES.
+
+ SQL > set lines 300 pages 300;
+SELECT sequence#, first_time, next_time, applied FROM v$archived_log ORDER BY sequence#;
+ 
+If sync between DC1 and DC2 is  not happening the know the gap status:-
+------------------------
+primary> SQL > select STATUS, GAP_STATUS from V$ARCHIVE_DEST_STATUS where DEST_ID = 2;
+ 
+
+standby> SQL > select NAME, VALUE, DATUM_TIME from V$DATAGUARD_STATS;
+
+To know the switch over status:-
+--------------------------------
+primary> SQL > select SWITCHOVER_STATUS from V$DATABASE;
+
+ 
+ Stop the instance-2 on both primary and standby databases.
+4. **Initiate Switchover on Primary:**
+   - On the primary database, initiate the switchover:
+     SQL >	ALTER DATABASE COMMIT TO SWITCHOVER TO PHYSICAL STANDBY WITH SESSION SHUTDOWN;
+ 
+5. **Monitor Switchover Progress:**
+   - Monitor the switchover progress using:
+	 SQL >	SELECT SWITCHOVER_STATUS FROM V$DATABASE;
+  And also monitor the Alert logfile.
+ 
+6. **Connect to the Standby Database:**
+7. **Complete Switchover:**
+   - On the standby database, complete the switchover:
+      SQL >	 ALTER DATABASE COMMIT TO SWITCHOVER TO PRIMARY WITH SESSION SHUTDOWN;  
+
+8. **Monitor Switchback Progress:**
+   - Monitor the switchback progress using:
+      SQL >	SELECT SWITCHOVER_STATUS FROM V$DATABASE; 
+Monitor the alert logfile for more information.
+
+9. **Verify Switchover Success:**
+   - Confirm the switchover success on both the primary and standby databases.
+   	- New primary > select name,status,instance_name,open_mode,database_role, switchover_status from gv$database,gv$instance;
+
+-It is showing database is open mode. And restart the database for get into open mode. 
+	Startup the new standby database.
+	- New stand by > select name, status, instance_name, open_mode,database_role, switchover_status from gv$database,gv$instance;
+
+-It is showing database is mount mode.
+Enable the archive destinations on current primary database and disable the archive destination_2 on Previous primary database.
+ And start the synchronisation(MRP0) on current standby database.
+
+10. **Adjust Client Connections:**
+   - Update client connections to point to the new primary database.
+ 
+

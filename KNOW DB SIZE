@@ -1,0 +1,154 @@
+select name,status,open_mode,database_role from v$database,v$instance;
+
+STATUS    NAME      DATABASE_ROLE
+--------- --------- ----------------
+OPEN      AMSPRD    PRIMARY
+
+SELECT SUM(bytes) / (1024 * 1024 * 1024) AS total_size_gb FROM dba_data_files;
+  
+TOTAL_SIZE_GB
+-------------
+   129.038391
+
+ASMCMD> lsdg
+State    Type    Rebal  Sector  Logical_Sector  Block       AU  Total_MB  Free_MB  Req_mir_free_MB  Usable_file_MB  Offline_disks  Voting_files  Name
+MOUNTED  EXTERN  N         512             512   4096  4194304    143360   106588                0          106588              0             N  ARCHIVES/
+MOUNTED  EXTERN  N         512             512   4096  4194304    307200   307184                0          307184              0             N  BACKUP/
+MOUNTED  EXTERN  N         512             512   4096  4194304    716800   297576                0          297576              0             N  DATA/
+MOUNTED  EXTERN  N         512             512   4096  4194304    204800   200112                0          200112              0             N  FRA/
+MOUNTED  HIGH    N         512             512   4096  4194304    102400   101088            40960           20042              0             Y  OCR/
+MOUNTED  EXTERN  N         512             512   4096  4194304     61428    59228                0           59228              0             N  REDO/
+
+[oracle@cdc1aodbdb1 backup]$ df -h
+Filesystem                    Size  Used Avail Use% Mounted on
+/dev/mapper/rhel-root         100G  1.7G   99G   2% /
+devtmpfs                       24G     0   24G   0% /dev
+tmpfs                          12G  1.6G   11G  13% /dev/shm
+tmpfs                          24G  1.9G   22G   8% /run
+tmpfs                          24G     0   24G   0% /sys/fs/cgroup
+/dev/mapper/rhel-usr           25G  4.6G   21G  19% /usr
+/dev/sda1                     2.0G  177M  1.9G   9% /boot
+/dev/mapper/vg01-lvol01      1000G  345G  656G  35% /db01
+/dev/mapper/rhel-u02          150G  110G   41G  74% /u02
+/dev/mapper/rhel-var           25G  578M   25G   3% /var
+/dev/mapper/rhel-tmp           10G   40M   10G   1% /tmp
+/dev/mapper/rhel-grid_home     50G  2.8G   48G   6% /grid_home
+/dev/mapper/rhel-oracle_home   50G  2.9G   48G   6% /oracle_home
+/dev/mapper/rhel-u01          150G   91G   60G  61% /u01
+tmpfs                         4.7G     0  4.7G   0% /run/user/54321
+tmpfs                         4.7G   12K  4.7G   1% /run/user/42
+tmpfs                         4.7G     0  4.7G   0% /run/user/54322
+tmpfs                         4.7G     0  4.7G   0% /run/user/54332
+
+
+select trunc(COMPLETION_TIME,'DD') Day,thread#,round(sum(BLOCKS*BLOCK_SIZE)/1024/1024/1024) GB,
+count(*) Archives_Generated from v$archived_log group by trunc(COMPLETION_TIME,'DD'),thread# order by 1;
+
+DAY          THREAD#         GB ARCHIVES_GENERATED
+--------- ---------- ---------- ------------------
+29-JAN-24          1          9                 55
+29-JAN-24          2          6                 40
+30-JAN-24          1         92                573
+30-JAN-24          2         70                440
+31-JAN-24          1         77                478
+31-JAN-24          2         66                414
+01-FEB-24          2         76                470
+01-FEB-24          1         68                429
+02-FEB-24          2         62                387
+02-FEB-24          1         79                489
+03-FEB-24          1         74                460
+03-FEB-24          2         76                472
+04-FEB-24          1         55                360
+04-FEB-24          2         84                518
+05-FEB-24          1         79                495
+05-FEB-24          2         66                418
+06-FEB-24          2         68                427
+06-FEB-24          1         76                470
+07-FEB-24          1         46                285
+07-FEB-24          2         41                256
+
+---------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------- 
+STATUS       NAME      DATABASE_ROLE
+------------ --------- ----------------
+OPEN         IMBDB     PRIMARY
+
+SELECT SUM(bytes) / (1024 * 1024 * 1024) AS total_size_gb FROM dba_data_files;
+
+TOTAL_SIZE_GB
+-------------
+      33.1325
+
+--------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------
+
+select name,status,open_mode,database_role from v$database,v$instance;
+
+STATUS       NAME      DATABASE_ROLE
+------------ --------- ----------------
+OPEN         LIBERTYD  PRIMARY
+
+SELECT SUM(bytes) / (1024 * 1024 * 1024) AS total_size_gb FROM dba_data_files;
+
+
+TOTAL_SIZE_GB
+-------------
+   64.9863129
+
+-----------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------
+select name,status,open_mode,database_role from v$database,v$instance;
+
+STATUS       NAME      DATABASE_ROLE
+------------ --------- ----------------
+OPEN         BAWDB     PRIMARY
+
+SELECT SUM(bytes) / (1024 * 1024 * 1024) AS total_size_gb FROM dba_data_files; 
+
+
+TOTAL_SIZE_GB
+-------------
+   49.9335785
+
+
+--------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+ASMCMD> lsdg
+State    Type    Rebal  Sector  Logical_Sector  Block       AU  Total_MB  Free_MB  Req_mir_free_MB  Usable_file_MB  Offline_disks  Voting_files  Name
+MOUNTED  EXTERN  N         512             512   4096  4194304    174080    93864                0           93864              0             N  ARCHIVE/
+MOUNTED  EXTERN  N         512             512   4096  4194304    174080    79708                0           79708              0             N  BACKUP/
+MOUNTED  EXTERN  N         512             512   4096  4194304    348160   171588                0          171588              0             N  DATA/
+MOUNTED  EXTERN  N         512             512   4096  4194304    174080   164592                0          164592              0             N  FRA/
+MOUNTED  HIGH    N         512             512   4096  4194304    122880   121256            40960           26765              0             Y  OCR/
+MOUNTED  EXTERN  N         512             512   4096  4194304     30720    20460                0           20460              0             N  REDO/
+ASMCMD>
+
+----------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------  
+[oracle@prdbawdb1 ~]$ df -h
+Filesystem                    Size  Used Avail Use% Mounted on
+/dev/mapper/rhel-root         100G   44G   57G  44% /
+devtmpfs                       16G     0   16G   0% /dev
+tmpfs                          16G  2.5G   14G  16% /dev/shm
+tmpfs                          16G  405M   16G   3% /run
+tmpfs                          16G     0   16G   0% /sys/fs/cgroup
+/dev/sda1                     2.0G  177M  1.9G   9% /boot
+/dev/mapper/rhel-oracle_home   50G  2.9G   48G   6% /oracle_home
+/dev/mapper/rhel-grid_home     50G  2.8G   48G   6% /grid_home
+/dev/mapper/rhel-u02          150G   62G   89G  42% /u02
+/dev/mapper/rhel-u01          150G  106G   45G  71% /u01
+/dev/mapper/rhel-tmp           25G   41M   25G   1% /tmp
+/dev/mapper/rhel-var           25G  506M   25G   2% /var
+tmpfs                         3.2G     0  3.2G   0% /run/user/54321
+tmpfs                         3.2G   12K  3.2G   1% /run/user/42
+tmpfs                         3.2G     0  3.2G   0% /run/user/0
+tmpfs                         3.2G     0  3.2G   0% /run/user/54322
+tmpfs                         3.2G     0  3.2G   0% /run/user/54331
+
+----------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------  
+TO KNOW LAST UPDATE TIME:-
+
+SELECT LAST_UPDATED_TIME,LSTU FROM "LIBERTYDB"."INFOBJ_FLIGHT" order by LSTU desc;
+
+SELECT LAST_UPDATED_TIME,LSTU FROM "LIBERTYDB"."INFOBJ_FLIGHT" order by LSTU asc;

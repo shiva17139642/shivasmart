@@ -1,0 +1,263 @@
+1.Setting SDU for Oracle RAC :-------------
+
+SDU cannot be set in the TCP endpoint for SCAN/Node listeners, but SDU can be changed using the global parameter DEFAULT_SDU_SIZE in the SQLNET.ORA file.
+Set DEFAULT_SDU_SIZE in the RDBMS home sqlnet.ora file. (Not GRID home.)
+
+DEFAULT_SDU_SIZE=2097152
+
+
+2.Determine Redo Write Size :----------
+
+The log writer (LGWR) redo write size translates to the packet size written to the network. You can determine the average redo write size using the metrics total redo size and total redo writes from an AWR report taken during peak redo rate.
+
+total redo size
+
+
+redo size			1,766,253,388	490,159.61	14,248.92         =62.96 
+redo size for direct writes	28,052,036	7,784.83	226.30
+
+3,418,477,080
+
+total redo writes
+
+426,201
+
+In this example the average redo write size is about 8k
+(redo size / redo writes) = 8,020 or 8k.
+
+The redo write size varies depending on workload and commit time. As the time to commit increases, the amount of redo waiting for the next write increases, thus increasing the next write size. Because SYNC transport increases the time to commit, you can expect the redo write size to increase as well. The degree to which the size increases depends on the latency between the primary and standby. Therefore, metrics taken from an ASYNC configuration are a starting point, and this process should be repeated once SYNC is enabled for a period of time. 
+
+3.Run tests with oratcptest:---------------
+
+In addition to providing the average write size, you can also specify that the oratcptest server process write network message to the same disk location where the standby redo logs will be placed.
+
+NOTE: ASM is currently not supported for the write location
+Given that the average redo write size in the example is 8k, and if the standby redo logs will be placed on /u01/oraredo, the server command to issue would be:
+
+$ java -jar oratcptest.jar -server -port=1521 -file=/home/oracle/oratcp.tmp
+
+
+4.On the sending side, issue the following client command to send over 8k messages with SYNC writes:--------------
+
+$ java -jar oratcptest.jar test.server.address.com -port=<port number> -mode=sync -duration=120s -interval=20s -length=8k -write
+
+
+java -jar oratcptest.jar 10.102.217.11 -port=1527 -duration=300s -interval=20s -mode=ASYNC
+
+[Requesting a test]
+
+        Message payload        = 8 kbytes
+        Payload content type   = RANDOM
+        Delay between messages = NO
+        Number of connections  = 1
+        Socket send buffer     = (system default)
+        Transport mode         = SYNC
+        Disk write             = YES
+        Statistics interval    = 20 seconds
+        Test duration          = 2 minutes
+        Test frequency         = NO
+        Network Timeout        = NO
+        (1 Mbyte = 1024x1024 bytes)
+ 
+(14:43:03) The server is ready.
+                        Throughput            Latency (including disk-write)
+(14:43:23)          5.662 Mbytes/s           1.382 ms
+(14:43:43)          5.618 Mbytes/s           1.393 ms
+(14:44:03)          5.656 Mbytes/s           1.383 ms
+(14:44:23)          5.644 Mbytes/s           1.386 ms
+(14:44:43)          5.680 Mbytes/s           1.377 ms
+(14:45:03)          5.637 Mbytes/s           1.388 ms
+(14:45:03) Test finished.
+               Socket send buffer = 166400
+                  Avg. throughput = 5.649 Mbytes/s
+                     Avg. latency = 1.385 ms (including disk-write at server)
+
+ The lower throughput is a result of the latency of the network round-trip and the write to disk.  The round-trip is a necessity with SYNC transport but the write to disk can be addressed with the following section.
+
+NOTE: Sync transport with higher round trip latency (> 5ms) can impact application response time and throughput for OLTP applications significantly. In the same environment with batch jobs or DML operations, overall elapsed time may not be impacted as much if sufficient network bandwidth is available.
+
+
+5.mplement FASTSYNC:------------------------
+
+As of Oracle 12c, Data Guard FASTSYNC can improve round trip time of a sync remote write by acknowledging the write when written to memory, instead of waiting for the write to disk to complete. Whether you see a benefit with FASTSYNC depends on the speed of the disk at the standby database. Enable FASTSYNC in the log_archive_dest_n parameter by setting Data Guard Broker property LogXptMode=FASTSYNC or by setting SYNC NOAFFIRM directly in the log_archive_dest_n parameter when Broker is not used.
+
+DGMGRL> edit database standby set property LogXptMode='FASTSYNC';
+OR
+
+SQL> alter system set log_archive_dest_2= ‘service=<standby net service name> SYNC NOAFFIRM db_unique_name=<standby unique name> net_timeout=8 valid_for=(online_logfile,all_roles)’
+
+
+6.Test the benefits of FASTSYNC in oratcptest by running SYNC mode without the -write option:---------------
+
+Server(standby):
+
+$ java -jar oratcptest.jar -server -port=<port number>
+Client(primary):
+
+$ java -jar oratcptest.jar test.server.address.com -port=<port number> -mode=sync -duration=120s -interval=20s -length=8k
+
+[Requesting a test]
+        Message payload        = 8 kbytes
+        Payload content type   = RANDOM
+        Delay between messages = NO
+        Number of connections  = 1
+        Socket send buffer     = (system default)
+        Transport mode         = SYNC
+        Disk write             = NO
+        Statistics interval    = 20 seconds
+        Test duration          = 2 minutes
+        Test frequency         = NO
+        Network Timeout        = NO
+        (1 Mbyte = 1024x1024 bytes)
+ 
+(14:40:19) The server is ready.
+                        Throughput            Latency
+(14:40:39)         25.145 Mbytes/s           0.311 ms
+(14:40:59)         24.893 Mbytes/s           0.314 ms
+(14:41:19)         25.380 Mbytes/s           0.308 ms
+(14:41:39)         25.101 Mbytes/s           0.312 ms
+(14:41:59)         24.757 Mbytes/s           0.316 ms
+(14:42:19)         25.136 Mbytes/s           0.311 ms
+(14:42:19) Test finished.
+               Socket send buffer = 166400
+                  Avg. throughput = 25.068 Mbytes/s
+                     Avg. latency = 0.312 ms
+
+  
+
+NOTE: As the redo write size increases, the throughput and latency increase. Therefore, it is important to repeat these tests with actual redo write size from metrics collected during sync redo transport.
+ 
+7.Increase Socket Buffer Size:----------------
+
+Socket buffers do not have the same impact on SYNC transport as they do for ASYNC; however, increased buffer sizes can help resolve gaps in redo following a standby database outage.  Using the previously determined socket buffer size is recommended but a setting of 3*Bandwidth Delay Product (BDP) can be used as well.
+
+For example, if asynchronous bandwidth is 622 Mbits and latency is 30 ms
+
+BDP = 622,000,000 (bandwidth) / 8 x 0.030 (latency) = 2,332,500 bytes
+
+3 x BDP = 6,997,500 bytes
+
+Set the Linux kernel parameters net.core.rmem_max and net.core.wmem_max to this value as described above in 'Configuring Operating System Maximum Buffer Size Limits'
+
+
+----------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------
+
+[oracle@cdc1aodbdb1 ~]$ java -jar oratcptest.jar 10.102.217.11 -port=1527 -duration=120s -interval=20s -mode=ASYNC
+[Requesting a test]
+        Message payload        = 1 Mbyte
+        Payload content type   = RANDOM
+        Delay between messages = NO
+        Number of connections  = 1
+        Socket send buffer     = (system default)
+        Transport mode         = ASYNC
+        Disk write             = NO
+        Statistics interval    = 20 seconds
+        Test duration          = 2 minutes
+        Test frequency         = NO
+        Network Timeout        = NO
+        (1 Mbyte = 1024x1024 bytes)
+
+(15:28:15) The server is ready.
+                    Throughput
+(15:29:06)      0.019 Mbytes/s
+(15:29:15)    341.664 Mbytes/s
+(15:29:35)    340.673 Mbytes/s
+(15:29:55)    313.864 Mbytes/s
+(15:30:15)    267.007 Mbytes/s
+(15:30:15) Test finished.
+               Socket send buffer = 2 Mbytes
+                  Avg. throughput = 177.242 Mbytes/s
+
+
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+[oracle@cdc1aodbdb1 ~]$ java -jar oratcptest.jar 10.102.217.12 -port=1527 -duration=120s -interval=20s -mode=ASYNC
+[Requesting a test]
+        Message payload        = 1 Mbyte
+        Payload content type   = RANDOM
+        Delay between messages = NO
+        Number of connections  = 1
+        Socket send buffer     = (system default)
+        Transport mode         = ASYNC
+        Disk write             = NO
+        Statistics interval    = 20 seconds
+        Test duration          = 2 minutes
+        Test frequency         = NO
+        Network Timeout        = NO
+        (1 Mbyte = 1024x1024 bytes)
+
+(15:48:26) The server is ready.
+                    Throughput
+(15:49:18)      0.019 Mbytes/s
+(15:49:26)    273.167 Mbytes/s
+(15:49:46)    273.655 Mbytes/s
+(15:50:06)    279.118 Mbytes/s
+(15:50:26)    267.068 Mbytes/s
+(15:50:26) Test finished.
+               Socket send buffer = 2 Mbytes
+                  Avg. throughput = 154.605 Mbytes/s
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+[oracle@cdc1aodbdb2 ~]$ java -jar oratcptest.jar 10.102.217.11 -port=1527 -duration=120s -interval=20s -mode=ASYNC
+[Requesting a test]
+        Message payload        = 1 Mbyte
+        Payload content type   = RANDOM
+        Delay between messages = NO
+        Number of connections  = 1
+        Socket send buffer     = (system default)
+        Transport mode         = ASYNC
+        Disk write             = NO
+        Statistics interval    = 20 seconds
+        Test duration          = 2 minutes
+        Test frequency         = NO
+        Network Timeout        = NO
+        (1 Mbyte = 1024x1024 bytes)
+
+(15:53:06) The server is ready.
+                    Throughput
+(15:53:58)      0.019 Mbytes/s
+(15:54:06)    281.330 Mbytes/s
+(15:54:26)    282.065 Mbytes/s
+(15:54:46)    289.204 Mbytes/s
+(15:55:06)    283.523 Mbytes/s
+(15:55:06) Test finished.
+               Socket send buffer = 2 Mbytes
+                  Avg. throughput = 161.934 Mbytes/s
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+[oracle@cdc1aodbdb2 ~]$ java -jar oratcptest.jar 10.102.217.12 -port=1527 -duration=300s -interval=20s -mode=ASYNC
+[Requesting a test]
+        Message payload        = 1 Mbyte
+        Payload content type   = RANDOM
+        Delay between messages = NO
+        Number of connections  = 1
+        Socket send buffer     = (system default)
+        Transport mode         = ASYNC
+        Disk write             = NO
+        Statistics interval    = 20 seconds
+        Test duration          = 5 minutes
+        Test frequency         = NO
+        Network Timeout        = NO
+        (1 Mbyte = 1024x1024 bytes)
+
+(16:37:14) The server is ready.
+                    Throughput
+(16:38:07)      0.019 Mbytes/s
+(16:38:14)    187.921 Mbytes/s
+(16:38:34)    202.085 Mbytes/s
+(16:38:54)    204.815 Mbytes/s
+(16:39:14)    205.486 Mbytes/s
+(16:39:34)    205.984 Mbytes/s
+(16:39:54)    218.079 Mbytes/s
+(16:40:14)    212.531 Mbytes/s
+(16:40:34)    219.779 Mbytes/s
+(16:40:54)    198.456 Mbytes/s
+(16:41:14)    185.879 Mbytes/s
+(16:41:34)    182.268 Mbytes/s
+(16:41:54)    190.756 Mbytes/s
+(16:42:14)    196.928 Mbytes/s
+(16:42:14) Test finished.
+               Socket send buffer = 2 Mbytes
+                  Avg. throughput = 165.950 Mbytes/s
+

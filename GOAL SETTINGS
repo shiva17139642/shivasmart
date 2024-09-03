@@ -1,0 +1,104 @@
+KRA (50%):------
+
+
+DATABASE ADMINISTRATOR  (20%):
+
+Knowledge about Databases of our applications like we have AMSPRD, LBERTYDB, IMBDB and BAWDB to handle flight data. 
+Responsible for maintaining, securing, and operating databases and also ensures that data is correctly stored and retrieved.
+
+MAINTAIN DATABASE HIGH AVAILABILITES :-
+
+RAC:-
+1. Monitoring Both primary and secondary servers are active and handle traffic, providing load balancing and high availability.
+2. Monitoring processors, database running status, services running status and all listeners working status checking in RAC.
+3. Perform regular database maintenance tasks such as indexing, statistics updates, and consistency checks to ensure optimal performance and reliability.
+4. Updating, maintaining, and querying databases, tables, views, indexes, and other objects related to airport flight data. 
+5. Checking Nodes availability, cluster status checking, disk groups space utilization and based on requirement add the disks into disk groups.
+6. Apply security patches and updates regularly to protect against vulnerabilities and ensure stability.
+7. Implement strict access controls to limit who can access and make changes to the database.
+
+DATAGUARD:-
+1. Monitoring the MRP process status, Archives shippings and applying status checkup from primary to standby.
+2. Checking the gaps between primary to standby in sync are not data blocks transferring.
+3. Incase of huge gaps resolve the gaps by using of service name.
+4. Develop and regularly test a disaster recovery plan to ensure quick restoration of database services in the event of a major failure.
+5. Implement point-in-time recovery to restore the database to a specific time, minimizing data loss in case of an incident.
+
+
+Improve Database Performance:- (10%)
+
+1. Monitoring database performance, ensuring data quality and security, solving problems and collaborating with other teams to resolve tickets/issues.
+2. Monitoring blocking sessions, inactive sessions after that resolved issues also check table space usage checkup.
+3. Updating existing tables in DB with updated flight information also cleaning archives, mount point, data quality, consistency and availability.
+4. Conduct a comprehensive performance audit of the current database.Identify slow-performing queries and database bottlenecks.
+5. Implement indexing on high-impact tables.Optimize slow-performing queries identified during the audit and Adjust indexing and query optimizations based on results.
+
+
+
+
+Enhance Backup and Recovery Processes :- (10%)
+
+1. Monitoring the backups daily and scheduling jobs for backups in crontab. In case of backup fails taking backups manually.
+2. Identify areas for improvement and select a more efficient backup solution.
+3. Implement a more efficient backup solution and conduct regular recovery tests.
+4. Based on our requirement taking backups and restore the databases and recover the databases.
+5. Based on our requirement data pump activities,schemas refreshments doing by using of EXPDP and IMPDP.
+
+
+
+Monitoring Applications :- (10%)
+
+Need to be acquiring more knowledge! on AMS applications and   middleware applications.
+Solving issues related to Staff page, ASO, Airlines, HR compliance etc.
+
+-------------------------------------------------------------------------------------------
+
+
+Competency50%
+
+Analytical and Problem-Solving :---
+
+1.Strong ability to diagnose and resolve database issues, including performance bottlenecks, connectivity problems, and data inconsistencies.
+2.Identify issues that arise and define the problem in a way that is understandable for all team members.
+Writing steps in the ticketing tool how we resolved the issue. So that other team members can also get to know the steps of resolution.
+3.Skills in planning and managing database storage requirements and growth.Ability to forecast future capacity needs based on trends and usage patterns.
+
+Project and Process Management:---
+
+
+1.Experience with change management processes and tools to handle database changes in a controlled manner.
+Ability to coordinate database changes with development and operations teams.
+2.Basic understanding of project management principles.Ability to manage database-related projects, including upgrades, migrations, and new implementations.
+
+
+
+Communication and Collaboration :--
+
+Ability to document procedures, configurations, and troubleshooting steps clearly.Ability to work collaboratively with cross-functional teams, including developers, system administrators, network engineers.
+strong interpersonal skills to build relationships and work effectively in a team environment.
+
+Continual Learning and Adaptability:-
+
+Commitment to continuous learning and staying current with the latest database technologies, trends, and best practices.
+Participation in training, certifications, and professional development opportunities.
+Ability to adapt to changing technologies, business requirements, and work environments.
+Flexibility to handle multiple tasks and priorities effectively.
+Ability to understand the business requirements and how database systems support those requirements.
+Skills in translating business needs into technical solutions.
+
+
+
+
+Developing self and others:--
+
+As a team member, Stay updated with industry trends, new technologies, and best practices. Attend conferences, take online courses, and read relevant books. Identify areas where i can improve. Whether it’s technical skills (programming languages, frameworks) or soft skills (communication, leadership), actively work on enhancing them.
+Seek feedback from peers, managers, and self-assessments. Reflect on your performance, learn from mistakes, and adapt accordingly. Prioritize physical and mental health. A healthy team member contributes more effectively to the team.
+Share my knowledge and experience with all team members. Mentorship fosters growth and builds a strong team. Encourage a culture of constructive feedback. Regularly provide feedback to colleagues, highlighting strengths and areas for improvement. Identify individual development needs. Provide opportunities for training, workshops, and cross-functional exposure.
+
+INDEPENDENT ACTION :---
+
+Regularly monitor database performance, health, and resource utilization.
+Perform routine maintenance tasks such as backups, index optimization, and data consistency checks.
+Address any alerts promptly to prevent issues from escalating.
+Predict growth trends based on historical data and business requirements.
+Scale up or out as necessary to accommodate increasing data volumes.

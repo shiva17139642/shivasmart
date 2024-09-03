@@ -1,0 +1,45 @@
+Knowledge about Databases of our applications like we have AMSPRD, LBERTYDB, IMBDB and BAWDB to handle flight data. 
+My roles and responsibilities include below:-
+MONITORING:-
+1. Monitoring database performance, ensuring data quality and security, solving problems and collaborating with other teams to resolve tickets/issues.
+2. Monitoring blocking sessions, inactive sessions after that resolved issues also check table space usage checkup.
+3. Updating existing tables in DB with updated flight information also cleaning archives, mount point, data quality, consistency and availability.
+BACKUPS:-
+1. Monitoring the backups daily and scheduling jobs for backups in crontab. In case of backup fails taking backups manually.
+2. Based on our requirement taking backups and restore the databases and recover the databases.
+3. Based on our requirement data pump activities doing by using of EXPDP and IMPDP.
+DATAGUARD:-
+1. Monitoring the MRP process status, Archives shippings and applying status checkup from primary to standby.
+2. Checking the gaps between primary to standby in sync are not data blocks transferring.
+3. Incase of huge gaps resolve the gaps by using of service name.
+RAC:-
+1. Monitoring processors, database running status, services running status and all listeners working status checking in RAC.
+2. Updating, maintaining, and querying databases, tables, views, indexes, and other objects related to airport flight data. 
+3. Checking Nodes availability, cluster status checking, disk groups space utilization and based on requirement add the disks into disk groups.
+
+
+
+Inhouse Applications:-
+Monitoring all the inhouse applications.In Airlines application if flights are in closed status, we need to update it to open in SQL server.
+For Staff page, resolving issues like application not working, user unable to login, flight data not coming in Staff Page etc.
+AMS application monitiring and Solving issues related to Staff page, ASO, Airlines, HR compliance etc. 
+
+
+
+a. ORACLE and SQL developer to involve in developing for future projects.
+b. Sql developer certification to maintain and update skill for future Projects.
+
+2. Monitoring database performance, ensuring data quality and security, solving problems and collaborating with other teams to resolve tickets/issues. 
+3. Optimized database performance and security by applying best practices, such as tuning, indexing, backup, recovery etc. 
+4. Updating existing tables in DB with updated flight information and resolved database issues like blocking issues, cleaning archives, mount point, data quality, consistency and availability.
+has context menu
+
+
+
+
+
+
+
+
+
+

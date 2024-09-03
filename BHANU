@@ -1,0 +1,232 @@
+[oracle@cdc2aodbdb2 ~]$ asmcmd find + spfile*
++DATA/AMSPRDSTBY/spfileamsprdstby.ora
++DATA/DB_UNKNOWN/PARAMETERFILE/SPFILE.257.1112443207
+[oracle@cdc2aodbdb2 ~]$
+[oracle@cdc2aodbdb2 ~]$ asmcmd spget
++OCR/cdc2aod-cluster/ASMPARAMETERFILE/registry.253.1111855301
+[oracle@cdc2aodbdb2 ~]$ 
+
++DATA/DB_UNKNOWN/PASSWORD/pwddb_unknown.256.1112442799
++OCR/ASM/PASSWORD/pwdasm.256.1111855305
++OCR/ASM/PASSWORD/pwdasm.257.1111855525
+[oracle@cdc2aodbdb2 ~]$
+[oracle@cdc2aodbdb2 ~]$
+[oracle@cdc2aodbdb2 ~]$ asmcmd pwget --asm
+
+
+
+
+###############################################################################################################
+###########################################################################################################
+
++OCR/orapwASM
+
+run {
+CONFIGURE CHANNEL DEVICE TYPE DISK FORMAT   '+BACKUP/dg_backup/%U';
+CONFIGURE CONTROLFILE AUTOBACKUP FORMAT FOR DEVICE TYPE DISK TO '+BACKUP/dg_backup/%F';
+CONFIGURE SNAPSHOT CONTROLFILE NAME TO '+BACKUP/dg_backup/snapcf_AMSPRD1.f'; # default
+allocate channel d1 device type disk format '+BACKUP/dg_backup/%U';
+BACKUP AS COMPRESSED BACKUPSET DATABASE PLUS ARCHIVELOG;
+}
+
+
+
+CONFIGURE RETENTION POLICY TO REDUNDANCY 1; # default
+CONFIGURE BACKUP OPTIMIZATION OFF; # default
+CONFIGURE DEFAULT DEVICE TYPE TO DISK; # default
+CONFIGURE CONTROLFILE AUTOBACKUP ON; # default
+CONFIGURE CONTROLFILE AUTOBACKUP FORMAT FOR DEVICE TYPE DISK TO '/db01/controlfile/%F';
+CONFIGURE DEVICE TYPE DISK PARALLELISM 1 BACKUP TYPE TO BACKUPSET; # default
+CONFIGURE DATAFILE BACKUP COPIES FOR DEVICE TYPE DISK TO 4;
+CONFIGURE ARCHIVELOG BACKUP COPIES FOR DEVICE TYPE DISK TO 1; # default
+CONFIGURE CHANNEL DEVICE TYPE DISK FORMAT   '/db01/backup/%U';
+CONFIGURE MAXSETSIZE TO UNLIMITED; # default
+CONFIGURE ENCRYPTION FOR DATABASE OFF; # default
+CONFIGURE ENCRYPTION ALGORITHM 'AES128'; # default
+CONFIGURE COMPRESSION ALGORITHM 'BASIC' AS OF RELEASE 'DEFAULT' OPTIMIZE FOR LOAD TRUE ; # default
+CONFIGURE RMAN OUTPUT TO KEEP FOR 3 DAYS;
+CONFIGURE ARCHIVELOG DELETION POLICY TO NONE; # default
+CONFIGURE SNAPSHOT CONTROLFILE NAME TO '/u02/app/oracle/product/19.3.0/dbhome_1/dbs/snapcf_AMSPRD1.f'; # default
+
+srvctl config database -d ASMPRD
+
+
+rman auxiliary /
+run {
+allocate auxiliary channel t1 type disk;
+duplicate target database for standby location '/db01/backup/dg_backup' nofilenamecheck;
+}
+
+
+run {
+allocate auxiliary channel t1 type disk;
+allocate auxiliary channel t2 type disk;
+duplicate target database for standby backup location '/u01/app/oracle/dg_backup' nofilenamecheck;
+}
+
+srvctl add database -d AMSPRDSTBY -o $ORACLE_HOME -r physical_standby -s mount -a data
+
+srvctl add instance -d AMSPRDSTBY -i AMSPRDSTBY1 -n cdc2aodbdb1.cdchial.in
+srvctl add instance -d AMSPRDSTBY -i AMSPRDSTBY2 -n cdc2aodbdb2.cdchial.in
+
+
+srvctl start instance -d AMSPRDSTBY -i AMSPRDSTBY2
+
+
+
+alter system set cluster_database=FALSE scope=spfile sid='*';
+set lines 300 pages 300;
+SELECT sequence#, first_time, next_time, applied FROM v$archived_log ORDER BY sequence#;
+
+
+alter system set log_archive_dest_state_2=defer scope=both sid='*';
+alter system set log_archive_dest_state_2=enable scope=both sid='*';
+
+-------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------
+run {
+allocate auxiliary channel t1 type disk;
+allocate channel c1 type disk;
+duplicate target database for standby from active database nofilenamecheck;
+}
+
+"Oracle@123"
+
+
+grid@123
+Grid@2022
+
+mkdir -p /dbbkp/backup/imbdb/dgbackup/dgbackup
+
+
+Database_AdmIniStration_200124
+
+srvctl modify database -d IMBDB -pwfile
+
+rman auxiliary sys/Database_AdmIniStration_200124@IMBDBSTBY
+connect target sys/Database_AdmIniStration_200124@imbdb
+run {
+allocate auxiliary channel t1 type disk;
+duplicate target database for standby backup location '/u01/rman_bkp' nofilenamecheck;
+}
+
+orapwd file=+DATA/IMBDB/PASSWORD/pwdimbdb.308.1111828935 password=Database_AdmIniStration_200124 entries=3 dbuniquename='IMBDB'
+
+
+SID_LIST_LISTENER =
+  (SID_LIST =
+    (SID_DESC =
+      (GLOBAL_DBNAME = IMBDBSTBY)
+      (ORACLE_HOME = /u02/app/oracle/product/19.3.0/dbhome_1)
+      (SID_NAME = IMBDBSTBY1)
+    )
+  )
+
+LISTENER_IMBDBSTBY =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = cdc2prdbawdb1.cdchial.in)(PORT = 1528))
+  )
+
+ADR_BASE_LISTENER = /u02/app/oracle
+
+SID_LIST_LISTENER =
+  (SID_LIST =
+    (SID_DESC =
+      (GLOBAL_DBNAME = IMBDBSTBY)
+      (ORACLE_HOME = /u02/app/oracle/product/19.3.0/dbhome_1)
+      (SID_NAME = IMBDBSTBY1)
+    )
+  )
+
+LISTENER_IMBDBSTBY =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = cdc2prdbawdb1.cdchial.in)(PORT = 1523))
+  )
+
+ADR_BASE_LISTENER = /u02/app/oracle
+
+run {
+CONFIGURE CONTROLFILE AUTOBACKUP FORMAT FOR DEVICE TYPE DISK TO '/dbbkp/backup/imbdb/dgbackup/%F';
+CONFIGURE CHANNEL DEVICE TYPE DISK FORMAT   '/dbbkp/backup/imbdb/dgbackup/%U';
+backup database plus archivelog;
+}
+
+IMBDBSTBY=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=IPC)(KEY=IMBDBSTBY)))) 
+
+ALTER SYSTEM SET LOG_ARCHIVE_DEST_STATE_2=DEFER scope=both;
+
+ALTER SYSTEM SET LOG_ARCHIVE_DEST_STATE_2=ENABLE scope=both;
+
+
+sqlplus sys/Database_AdmIniStration_200124@IMBDBSTBY as sysdba
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+Thank you for your kind patience. I would like you to check the following and ensure this is not causing the issue.
+
+NOTE - Ensure you spool all the steps in a text file and upload to the SR (no steps should be missed from 1-4).
+
+1. Please check and ensure that the environment variables are set correctly on your RAC environment from both NODES-1 and 2. Update it in SR as well.
+
+echo $ORACLE_UNQNAME
+echo $TNS_ADMIN
+echo $ORACLE_HOME
+echo $ORACLE_SID
+echo $ORACLE_BASE
+echo $PATH
+
+For RAC:
+
+srvctl getenv database -d rac
+srvctl getenv database -d rac -t "TNS_ADMIN"
+srvctl getenv database -d rac -t "ORACLE_UNQNAME"=<Set the correct one here>
+
+## You need to replace the above entries according to your environment.
+
+VERY IMPORTANT NOTE: If any of the above environment variables are not set or show blank or are showing incorrect directory or name then please correct them and check again until they show the right path or name that should be configured in your environment in question.
+
+2. Is the asm pwfile showing up in the below outputs?
+
+srvctl config asm
+srvctl status asm
+
+3. It seems that on Node-1 database(s) are unable to interact with ASM, so please upload the entire ASM log file to this SR.
+
+4. Lastly, please check if you are using the same user on both Node-1 and 2 and following document works for you or not?
+
+ORA-17503/ORA-27300/ORA-27301/ORA-27302 occurred if connected database via an os user who is not in "oinstall" group ( Doc ID 2310640.1 )
+
+------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------
+srvctl config database -d IMBDB | grep Password
+
+
+create passwordfile in ASM:
+---------------------------------
+orapwd file='+DATA/ORCL_IAD1KH/pwdorcl_iad1kh' dbuniquename='ORCL_IAD1KH'
+
+orapwd file='+FRA' dbuniquename='LIBERTYDB'
+
+OS level sys pw: Database_AdmIn_10022024
+
+
+
+file=$ORACLE_HOME/dbs/orapw<database_name> password=<new_password> Replace <database_name>
+
+select dbms_metadata.get_ddl('USER','SYS') ddl from dual;
+sys pw: 'S:DD6391EDC42C421407C4A92F4FB17A4D62E'
+
+
+
+
+orapwd file='+FRA/IMBDB/PASSWORD' dbuniquename='IMBDB'
+OS level sys pw: Database_AdmIn_05020124
+
+
+stagging 10.102.123.4:-
+--------------------------------
+orapwd file='+DATA02' dbuniquename='IMBDB'
+OS level sys pw: Database_AdmIn_05020124
+
+------------------------------------------
+

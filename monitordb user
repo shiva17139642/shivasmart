@@ -1,0 +1,129 @@
+select username from all_users;
+
+create user MONITORDB identified by monitordb default tablespace users temporary tablespace temp account unlock;
+
+alter user MONITORDB quota unlimited on users;
+
+grant connect, resource,CREATE ANY TABLE,select ANY TABLE,READ ANY TABLE to MONITORDB;
+
+grant create database link to MONITORDB;
+
+col GRANTEE for a40;
+col GRANTED_ROLE for a55;
+set lines 200 pages 200;
+SELECT * FROM DBA_ROLE_PRIVS WHERE GRANTEE = 'MONITORDB';
+
+
+SELECT * FROM DBA_SYS_PRIVS WHERE GRANTEE = 'MONITORDB';
+
+grant  SELECT_CATALOG_ROLE to MONITORDB;
+
+-----------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------
+select username from all_users;
+
+create user testdb identified by testdb123 default tablespace users temporary tablespace temp account unlock;
+
+alter user testdb quota unlimited on users;
+
+grant connect, resource,CREATE ANY TABLE,select ANY TABLE,READ ANY TABLE to testdb;
+
+grant  SELECT_CATALOG_ROLE to testdb;
+
+
+col GRANTEE for a40;
+col GRANTED_ROLE for a55;
+set lines 200 pages 200;
+SELECT * FROM DBA_ROLE_PRIVS WHERE GRANTEE = 'TESTDB';
+
+
+SELECT * FROM DBA_SYS_PRIVS WHERE GRANTEE = 'TESTDB';
+
+-----------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------
+SOURCE DB DETAILS :-10.65.1.60
+--------------------
+
+Hostname: cargo-oracledb
+
+DB Name: HISTDB
+
+Schema name/password: TESTDB/testdb123
+
+TNS Entry: 
+
+HISTDB =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = cargo-oracledb)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = HISTDB)
+    )
+  )
+
+
+
+TARGET or REMOTE DB DETAILS :-10.65.1.67
+--------------------
+
+Hostname: localhost.localdomain
+
+DB Name: MADBHIST
+
+Schema name/password: MONITORDB/monitordb
+
+TNS Entry: 
+
+MADBHIST =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = localhost.localdomain)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = MADBHIST)
+    )
+  )
+
+
+-----------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------
+
+PUBLICDB LINK CREATE:-
+--------------------
+CREATE PUBLIC DATABASE LINK test_remote
+CONNECT TO MONITORDB IDENTIFIED BY monitordb USING 'MADBHIST';
+
+CREATE PUBLIC DATABASE LINK link_name
+CONNECT TO remote_user_name
+IDENTIFIED BY remote_user_password
+USING 'remote_service_name';
+
+
+PRIVATEDB LINK CREATE:-
+--------------------
+grant create database link to TESTDB;
+
+
+
+CREATE DATABASE LINK link_name
+CONNECT TO remote_user_name
+IDENTIFIED BY remote_user_password
+USING 'remote_service_name';
+
+CREATE DATABASE LINK test_remote
+CONNECT TO MONITORDB  IDENTIFIED BY monitordb
+USING 'MADBHIST';
+
+
+-----------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------
+
+set lines 180 pages 999;
+col owner for a15;
+col DB_LINK for a15;
+col USERNAME for a15;
+col HOST for a39;
+col CREATION_DATE for a20;
+select owner, db_link, username, host , to_char(created,'MM/DD/YYYY HH24:MI:SS') creation_date from dba_db_links;
+
+
+select count(*) from dba_tables@test_remote;

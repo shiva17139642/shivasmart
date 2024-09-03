@@ -1,0 +1,15 @@
+./runcluvfy.sh stage -pre crsinst -n dbwr1,dbwr2 -verbose
+
+
+./runcluvfy.sh stage -pre crsinst -n stgbawdb1,stgbawdb2 -verbose
+
+
+./sshUserSetup.sh -user oracle -hosts “stgbawdb1 stgbawdb2” -noPromptPassphrase -confirm -advanced
+
+./runcluvfy.sh stage -pre crsinst -n stgbawdb1,stgbawdb2 -verbose 
+
+export DISPLAY=:0.0
+xhost +
+
+
+./runcluvfy.sh stage -pre crsinst -n stgbawdb1,stgbawdb2 -fixup -verbose

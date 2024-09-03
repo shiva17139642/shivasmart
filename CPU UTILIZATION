@@ -116,11 +116,6 @@ col MACHINE for a40;
 col SCHEMANAME for a40;
 col USERNAME for a40;
 select SQL_ID,OSUSER,MACHINE,SCHEMANAME,USERNAME from v$session where SQL_ID='4hy3z5vxphx5w';
-
-
-
-
-
 --------------------------------------------------------------------------------------------------------------
 --------------------------------------------------------------------------------------------------------------
 

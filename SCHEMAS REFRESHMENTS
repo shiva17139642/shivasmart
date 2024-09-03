@@ -1,0 +1,338 @@
+TO KNOW DIRECTORYS STATUS :-
+-----------------------------
+set lines 150 pages 150;
+col OWNER for a30;
+col DIRECTORY_NAME for a30;
+col DIRECTORY_PATH for a30;
+select owner,DIRECTORY_NAME,DIRECTORY_PATH from dba_directories;
+
+TO KNOW THE USER STATS:-
+----------------------------
+set pages 200;
+select username from all_users;
+
+SQL> 
+select username from all_users where username like '%AAA%';
+
+IF YOU WANT TO DROP SCHEMA:-
+-----------------------------
+DROP USER <USERNAME>;
+
+
+CHECK ALL THE DATAFILE OF A TABLESPACE:-
+----------------------------------------------
+COLUMN file_name FORMAT A70;
+SELECT file_id,
+       file_name,
+       ROUND(bytes/1024/1024) AS size_mb,
+       ROUND(maxbytes/1024/1024) AS max_size_mb,
+       autoextensible,
+       increment_by,
+       status
+FROM   dba_data_files
+WHERE  tablespace_name = 'USERS'
+ORDER BY file_id;
+
+
+Drop tablespace including the physical datafiles:-
+---------------------------------------------------
+drop tablespace <name> including contents and datafiles;
+
+
+TO KNOW TABLESPACES OF USERS:-
+----------------------------------
+set lines 200 pages 200;
+col username for a25;
+col profile for a20;
+col DEFAULT_TABLESPACE for a20;
+col TEMPORARY_TABLESPACE for a20;
+col ACCOUNT_STATUS for a20;
+select username,DEFAULT_TABLESPACE,TEMPORARY_TABLESPACE,PROFILE,ACCOUNT_STATUS from dba_users order by 1 ;
+
+
+TO KNOW THE DBA_OBJECTS IN USER:-
+----------------------------------
+col OWNER for a30;
+set lines 200 pages 200;
+select owner,object_type,status,count(*) from dba_objects where owner in ('OWNSGAPRD_AIR_HYD ') group by object_type, owner,status order by owner;
+ 
+
+ NEW TABLESPACE: -									                             
+----------------------------------
+
+Create tablespace BAWDB_24 datafile '+DATA/BAWDB/DATAFILE/BAWDB_001.dbf' size 5G ;
+
+Create tablespace CARGO_24 datafile '+DATA/BAWDB/DATAFILE/BAWDB_001.dbf' size 5G ;
+
+ NEW DIRECTORY: -									                             
+----------------------------------
+
+CREATE OR REPLACE DIRECTORY DATAPUMP_BAWDB AS '/u02/DATAPUMP_BAWDB';
+ 
+CREATE OR REPLACE DIRECTORY DATAPUMP_BAWDB AS '/dbbkp/data_pump/bawdb';
+
+------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+create user TESTDB identified by testdb123 default tablespace USERS temporary tablespace temp account unlock;
+alter user TESTDB quota unlimited on USERS;
+grant connect, resource,CREATE ANY TABLE,select ANY TABLE,READ ANY TABLE to TESTDB;
+
+1. To check roles assigned to a user:-
+
+col GRANTEE for a40;
+col GRANTED_ROLE for a55;
+set lines 200 pages 200;
+SELECT * FROM DBA_ROLE_PRIVS WHERE GRANTEE = 'MONITORDB';
+
+ 
+2. To check system privileges granted to a user:-
+
+SELECT * FROM DBA_SYS_PRIVS WHERE GRANTEE = 'MONITORDB';
+
+ 
+3. To check object privileges granted to a user:-
+
+SELECT * FROM DBA_TAB_PRIVS WHERE GRANTEE = 'MONITORDB';
+------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+
+create user CELLUSER_24  identified by celluser123 default tablespace BAWDB_24 temporary tablespace temp account unlock;
+alter user CELLUSER_24 quota unlimited on BAWDB_24;
+grant connect, resource,CREATE ANY TABLE,select ANY TABLE,READ ANY TABLE to CELLUSER_24;
+grant read,write on directory DATAPUMP_BAWDB to CELLUSER_24;
+
+
+create user CMNUSER_24 identified by cmnuser123 default tablespace BAWDB_24 temporary tablespace temp account unlock;
+alter user CMNUSER_24 quota unlimited on BAWDB_24;
+grant connect, resource,CREATE ANY TABLE,select ANY TABLE,READ ANY TABLE to CMNUSER_24;
+grant read,write on directory DATAPUMP_BAWDB to CMNUSER_24;
+
+
+create user DOSUSER_24 identified by dosuser123 default tablespace BAWDB_24 temporary tablespace temp account unlock;
+alter user DOSUSER_24 quota unlimited on BAWDB_24;
+grant connect, resource,CREATE ANY TABLE,select ANY TABLE,READ ANY TABLE to DOSUSER_24;
+grant read,write on directory DATAPUMP_BAWDB to DOSUSER_24;
+
+
+create user ICNUSER_24 identified by icnuser123 default tablespace BAWDB_24 temporary tablespace temp account unlock;
+alter user ICNUSER_24 quota unlimited on BAWDB_24;
+grant connect, resource,CREATE ANY TABLE,select ANY TABLE,READ ANY TABLE to ICNUSER_24;
+grant read,write on directory DATAPUMP_BAWDB to ICNUSER_24;
+
+
+create user PDWUSER_24 identified by pdwuser123 default tablespace BAWDB_24 temporary tablespace temp account unlock;
+alter user PDWUSER_24 quota unlimited on BAWDB_24;
+grant connect, resource,CREATE ANY TABLE,select ANY TABLE,READ ANY TABLE to PDWUSER_24;
+grant read,write on directory DATAPUMP_BAWDB to PDWUSER_24;
+
+
+create user PSUSER_24 identified by psuser123 default tablespace BAWDB_24 temporary tablespace temp account unlock;
+alter user PSUSER_24 quota unlimited on BAWDB_24;
+grant connect, resource,CREATE ANY TABLE,select ANY TABLE,READ ANY TABLE to PSUSER_24;
+grant read,write on directory DATAPUMP_BAWDB to PSUSER_24;
+
+
+create user TOSUSER_24 identified by tosuser123 default tablespace BAWDB_24 temporary tablespace temp account unlock;
+alter user TOSUSER_24 quota unlimited on BAWDB_24;
+grant connect, resource,CREATE ANY TABLE,select ANY TABLE,READ ANY TABLE to TOSUSER_24;
+grant read,write on directory DATAPUMP_BAWDB to TOSUSER_24;
+
+create user TOUSER_24 identified by touser123 default tablespace BAWDB_24 temporary tablespace temp account unlock;
+alter user TOUSER_24 quota unlimited on BAWDB_24;
+grant connect, resource,CREATE ANY TABLE,select ANY TABLE,READ ANY TABLE to TOUSER_24;
+grant read,write on directory DATAPUMP_BAWDB to TOUSER_24;
+
+create user TESTDB identified by testdb123 default tablespace BAWDB_24 temporary tablespace temp account unlock;
+alter user TESTDB quota unlimited on BAWDB_24;
+grant connect, resource,CREATE ANY TABLE,select ANY TABLE,READ ANY TABLE to TESTDB;
+grant read,write on directory DATAPUMP_BAWDB to TESTDB;
+
+
+EXPDP:-
+--------
+
+expdp directory=DATAPUMP_BAWDB dumpfile=USERS_BAW.dmp logfile=USERS_BAWDB.log schemas=PDWUSER,CELLUSER,CMNUSER,DOSUSER,ICNUSER,PSUSER,TOSUSER,TOUSER
+ 
+ 
+IMPDP:-
+--------
+ 
+
+impdp directory=DATAPUMP_BAWDB dumpfile=USERS_BAW.dmp logfile=PDWUSER_BAWDB_24.log remap_schema=PDWUSER:PDWUSER_24 remap_tablespace=users:BAWDB_24
+
+impdp directory=DATAPUMP_BAWDB dumpfile=USERS_BAW.dmp logfile= CELLUSER_BAWDB_24.log remap_schema= CELLUSER:CELLUSER_24 remap_tablespace=users:BAWDB_24
+
+impdp directory=DATAPUMP_BAWDB dumpfile=USERS_BAW.dmp logfile= DOSUSER_BAWDB_24.log remap_schema= DOSUSER:DOSUSER_24 remap_tablespace=users:BAWDB_24
+
+impdp directory=DATAPUMP_BAWDB dumpfile=USERS_BAW.dmp logfile= ICNUSER_BAWDB_24.log remap_schema= ICNUSER:ICNUSER_24 remap_tablespace=users:BAWDB_24
+
+impdp directory=DATAPUMP_BAWDB dumpfile=USERS_BAW.dmp logfile= CMNUSER_BAWDB_24.log remap_schema= CMNUSER:CMNUSER_24 remap_tablespace=users:BAWDB_24
+
+impdp directory=DATAPUMP_BAWDB dumpfile=USERS_BAW.dmp logfile= PSUSER_BAWDB_24.log remap_schema= PSUSER:PSUSER_24 remap_tablespace=users:BAWDB_24
+
+impdp directory=DATAPUMP_BAWDB dumpfile=USERS_BAW.dmp logfile= TOSUSER_BAWDB_24.log remap_schema= TOSUSER:TOSUSER_24 remap_tablespace=users:BAWDB_24
+
+impdp directory=DATAPUMP_BAWDB dumpfile=USERS_BAW.dmp logfile= TOUSER_BAWDB_24.log remap_schema= TOUSER:TOSUSER_24 remap_tablespace=users:BAWDB_24
+
+######################################################################################################
+######################################################################################################
+select owner,object_type,status,count(*) from dba_objects where owner in ('OWNSGAPRD_AIR_HYD ') group by object_type, owner,status order by owner;
+
+TO KKNOW THE ALL INVALID OBJECTS:-
+--------------------------------
+set pages 9999 lines 200;
+col owner for a12;
+col object_name for a30;
+col object_type for a20;
+select owner,object_name,object_type,status from dba_objects where status = 'INVALID' order by owner,object_type, object_name;
+
+
+-- Run the script as SYSDBA
+SQL> @?/rdbms/admin/utlrp.sql
+
+
+TO KKNOW THE ALL USERS:-
+---------------------------
+set pages 200;
+select username from all_users;
+
+
+###########################################################################################################
+###########################################################################################################
+
+col OWNER for a30;
+set lines 200 pages 200;
+select owner,object_type,status,count(*) from dba_objects where owner in ('OWNAAAPRD','AAAPRD') group by object_type, owner,status order by owner;
+
+OWNER                          OBJECT_TYPE             STATUS    COUNT(*)
+------------------------------ ----------------------- ------- ----------
+OWNFIDPRD                      INDEX                   VALID          238
+OWNFIDPRD                      LOB                     VALID           14
+OWNFIDPRD                      TABLE                   VALID          139
+OWNFIDPRD                      VIEW                    VALID            7
+OWNSGAPRD                      INDEX                   VALID            3
+OWNSGAPRD                      TABLE                   VALID            8
+OWNSGAPRD_AIR_HYD_P1           INDEX                   VALID          169
+OWNSGAPRD_AIR_HYD_P1           LOB                     VALID           36
+OWNSGAPRD_AIR_HYD_P1           SEQUENCE                VALID            2
+OWNSGAPRD_AIR_HYD_P1           TABLE                   VALID           51
+
+
+
+select 'drop '||OBJECT_TYPE||' OWNFIDPRD.'|| OBJECT_NAME || ';' from dba_objects where owner='OWNFIDPRD';
+
+select 'drop '||OBJECT_TYPE||' OWNSGAPRD.'|| OBJECT_NAME || ';' from dba_objects where owner='OWNSGAPRD';
+
+select 'drop '||OBJECT_TYPE||' OWNSGAPRD_AIR_HYD_P1.'|| OBJECT_NAME || ';' from dba_objects where owner='OWNSGAPRD_AIR_HYD_P1';
+
+
+
+
+expdp directory=DATAPUMP_AMSPRD dumpfile=exp_OWNAAAPRD_26_08.dmp logfile=exp_OWNAAAPRD_26_08.log schemas=OWNAAAPRD
+
+expdp directory=DUMP_DIR dumpfile=USERS_DUMP_DIR_22_08.dmp logfile=USERS_DUMP_DIR_22_08.log full=y cluster=n
+
+
+select 'drop '||OBJECT_TYPE||' OWNAAAPRD.'|| OBJECT_NAME || ';' from dba_objects where object_type in ('VIEW','PACKAGE','SEQUENCE', 'PROCEDURE', 'FUNCTION', 'INDEX') and owner = ('OWNAAAPRD');
+
+select 'drop '||OBJECT_TYPE||' OWNAAAPRD.'|| OBJECT_NAME || ';' from dba_objects where owner='OWNAAAPRD';
+
+col OWNER for a30;
+set lines 200 pages 200;
+select owner,object_type,status,count(*) from dba_objects where owner in ('OWNAAAPRD') group by object_type, owner,status order by owner;
+
+impdp directory=DUMP_DIR dumpfile=USERS_OWNAAAPRD.dmp logfile=USERS_OWNAAAPRD.log schemas=OWNAAAPRD TABLE_EXISTS_ACTION=replace
+
+SQL> spool OWNAAAPRD.sql
+
+select 'drop '||OBJECT_TYPE||' OWNAAAPRD.'|| OBJECT_NAME || ';' from dba_objects where owner='OWNAAAPRD';
+
+spool off;
+
+
+SELECT COUNT(*)
+FROM ALL_OBJECTS
+WHERE OWNER = 'OWNAAAPRD';
+
+impdp directory=DUMP_DIR dumpfile=exp_OWNAAAPRD_26_08.dmp logfile=exp_OWNAAAPRD_26_08.log schemas=OWNAAAPRD TABLE_EXISTS_ACTION=replace
+
+impdp directory=DUMP_DIR dumpfile=exp_amsfull_27_08.dmp logfile=imp_amsfull_27_08.log full=y cluster=n TABLE_EXISTS_ACTION=replace
+
+##########################################################################################################
+SQL> desc dba_datapump_jobs;
+ Name                                      Null?    Type
+ ----------------------------------------- -------- ----------------------------
+ OWNER_NAME                                         VARCHAR2(128)
+ JOB_NAME                                           VARCHAR2(128)
+ OPERATION                                          VARCHAR2(128)
+ JOB_MODE                                           VARCHAR2(128)
+ STATE                                              VARCHAR2(128)
+ DEGREE                                             NUMBER
+ ATTACHED_SESSIONS                                  NUMBER
+ DATAPUMP_SESSIONS                                  NUMBER
+
+###############################################################################################################
+
+select JOB_NAME,STATE from dba_datapump_jobs;
+
+JOB_NAME               STATE
+---------------------- ---------------------------------
+SYS_IMPORT_FULL_06     EXECUTING
+SYS_EXPORT_SCHEMA_01   NOT RUNNING
+SYS_IMPORT_FULL_04     NOT RUNNING
+SYS_IMPORT_FULL_03     NOT RUNNING
+SYS_IMPORT_FULL_02     NOT RUNNING
+SYS_EXPORT_SCHEMA_02   NOT RUNNING
+SYS_EXPORT_FULL_02     NOT RUNNING
+SYS_EXPORT_FULL_03     NOT RUNNING
+SYS_IMPORT_FULL_05     NOT RUNNING
+SYS_EXPORT_SCHEMA_05   NOT RUNNING
+SYS_EXPORT_FULL_01     NOT RUNNING
+SYS_EXPORT_SCHEMA_04   NOT RUNNING
+SYS_IMPORT_FULL_01     NOT RUNNING
+SYS_EXPORT_SCHEMA_03   NOT RUNNING
+
+14 rows selected.
+#############################################################################################
+
+impdp attach=SYS_IMPORT_FULL_06
+Import> status
+
+Job: SYS_IMPORT_FULL_06
+  Operation: IMPORT
+  Mode: FULL
+  State: EXECUTING
+  Bytes Processed: 8,714,245,912
+  Percent Done: 99
+  Current Parallelism: 1
+  Job Error Count: 0
+  Job heartbeat: 3
+  Dump File: /u02/DATAPUMP/exp_amsfull_27_08.dmp
+
+Worker 1 Status:
+  Instance ID: 1
+  Instance name: hydamsst1
+  Host name: stgaodbdb1.ghiacdctest.in
+  Object start time: Tuesday, 27 August, 2024 15:49:00
+  Object status at: Tuesday, 27 August, 2024 15:49:00
+  Process Name: DW00
+  State: EXECUTING
+  Object Schema: OWNFOMPRD_AIR_HYD_P1
+  Object Name: FOM_AGENT_INFO
+  Object Type: DATABASE_EXPORT/SCHEMA/TABLE/TABLE_DATA
+  Completed Objects: 107
+  Completed Bytes: 21,601,448
+  Worker Parallelism: 1
+
+
+col OWNER for a30;
+set lines 200 pages 200;
+SELECT COUNT(*) FROM ALL_OBJECTS;
+
+set pages 9999 lines 200;
+col owner for a12;
+col object_name for a30;
+col object_type for a20;
+select owner,object_name,object_type,status from dba_objects where status='invalid';
+
+

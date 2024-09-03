@@ -1,0 +1,1760 @@
+	 PROCEDURE
+Without shutting down primary, we need to create physical standby database using RMAN DUPLICATE 
+FROM ACTIVE DATABASE command.
+
+Note: No need to take backup of primary database.
+6.1	Infrastructure Setup
+Step 1: Environment
+•	Primary RAC cluster : rac-cluster
+
+Platform	:	Linuxx86_64
+Server Name	:	
+DB Version	:	Oracle 19.3.0.0.0
+File system	:	ASM
+Disk Groups	:	+DATA,+FRA
+Database Name	:	PRIMARY
+DB_UNIQUE_NAME	:	PRIMARY
+INSTANCES	:	PRIMARY1,PRIMARY2
+Flashback	:	Disabled
+Oracle Home Path	:	 /u01/app/oracle/product/19.3.0/dbhome_1
+Primary Cluster Status: 
+
+[oracle@rac1 ~]$ crsctl check cluster -all
+**************************************************************
+rac1:
+CRS-4537: Cluster Ready Services is online
+CRS-4529: Cluster Synchronization Services is online
+CRS-4533: Event Manager is online
+**************************************************************
+rac2:
+CRS-4537: Cluster Ready Services is online
+CRS-4529: Cluster Synchronization Services is online
+CRS-4533: Event Manager is online
+**************************************************************
+[oracle@rac1 ~]$
+[oracle@rac1 ~]$ crsctl stat res -t
+-------------------------------------------------------------------------
+Name           Target  State        Server                   State details
+-------------------------------------------------------------------------
+Local Resources
+-------------------------------------------------------------------------
+ora.ASMNET1LSNR_ASM.lsnr
+               ONLINE  ONLINE       rac1                     STABLE
+               ONLINE  ONLINE       rac2                     STABLE
+ora.DATA.dg
+               ONLINE  ONLINE       rac1                     STABLE
+               ONLINE  ONLINE       rac2                     STABLE
+ora.FRA.dg
+               ONLINE  ONLINE       rac1                     STABLE
+               ONLINE  ONLINE       rac2                     STABLE
+ora.LISTENER.lsnr
+               ONLINE  ONLINE       rac1                     STABLE
+               ONLINE  ONLINE       rac2                     STABLE
+ora.net1.network
+               ONLINE  ONLINE       rac1                     STABLE
+               ONLINE  ONLINE       rac2                     STABLE
+ora.ons
+               ONLINE  ONLINE       rac1                     STABLE
+               ONLINE  ONLINE       rac2                     STABLE
+ora.proxy_advm
+               OFFLINE OFFLINE      rac1                     STABLE
+               OFFLINE OFFLINE      rac2                     STABLE
+-------------------------------------------------------------------------
+Cluster Resources
+--------------------------------------------------------------------------------
+ora.LISTENER_SCAN1.lsnr
+      1        ONLINE  ONLINE       rac2                     STABLE
+ora.LISTENER_SCAN2.lsnr
+      1        ONLINE  ONLINE       rac1                     STABLE
+ora.LISTENER_SCAN3.lsnr
+      1        ONLINE  ONLINE       rac1                     STABLE
+ora.asm
+      1        ONLINE  ONLINE       rac1                     Started,STABLE
+      2        ONLINE  ONLINE       rac2                     Started,STABLE
+      3        OFFLINE OFFLINE                               STABLE
+ora.cvu
+      1        ONLINE  ONLINE       rac1                     STABLE
+ora.primary.db
+      1        ONLINE  ONLINE       rac1                     Open,HOME=/u01/app/o
+                                                             racle/product/19.3.0
+                                                             /dbhome_1,STABLE
+      2        ONLINE  ONLINE       rac2                     Open,HOME=/u01/app/o
+                                                       racle/product/19.3.0    
+                                                      /dbhome_1,STABLE    
+ora.qosmserver
+      1        OFFLINE OFFLINE                               STABLE
+ora.rac1.vip
+      1        ONLINE  ONLINE       rac1                     STABLE
+ora.rac2.vip
+      1        ONLINE  ONLINE       rac2                     STABLE
+ora.scan1.vip
+      1        ONLINE  ONLINE       rac2                     STABLE
+ora.scan2.vip
+      1        ONLINE  ONLINE       rac1                     STABLE
+ora.scan3.vip
+      1        ONLINE  ONLINE       rac1                     STABLE
+-------------------------------------------------------------------------
+[oracle@rac1 ~]$
+
+•	Standby RAC Cluster: racdg-cluster.
+
+Platform	:	Linuxx86_64
+Server Name	:	
+DB Version	:	Oracle 19.3.0.0.0
+File system	:	ASM
+Disk Groups	:	+DATA,+FRA
+Database Name	:	PRIMARY
+DB_UNIQUE_NAME	:	PRIMARY
+INSTANCES	:	PRIMARY1,PRIMARY2
+Flashback	:	Disabled
+Oracle Home Path	:	 /u01/app/oracle/product/19.3.0/dbhome_1
+
+Standby Cluster Status
+
+[grid@racdg1 ~]$ crsctl check cluster -all
+**************************************************************
+racdg1:
+CRS-4537: Cluster Ready Services is online
+CRS-4529: Cluster Synchronization Services is online
+CRS-4533: Event Manager is online
+**************************************************************
+racdg2:
+CRS-4537: Cluster Ready Services is online
+CRS-4529: Cluster Synchronization Services is online
+CRS-4533: Event Manager is online
+**************************************************************
+[grid@racdg1 ~]$
+
+[grid@racdg1 ~]$ crsctl stat res -t
+-------------------------------------------------------------------------
+Name           Target  State        Server                   State details
+-------------------------------------------------------------------------
+Local Resources
+-------------------------------------------------------------------------
+ora.ASMNET1LSNR_ASM.lsnr
+               ONLINE  ONLINE       racdg1                   STABLE
+               ONLINE  ONLINE       racdg2                   STABLE
+ora.DATA.dg
+               ONLINE  ONLINE       racdg1                   STABLE
+               ONLINE  ONLINE       racdg2                   STABLE
+ora.DATA_DG.dg
+               ONLINE  ONLINE       racdg1                   STABLE
+               ONLINE  ONLINE       racdg2                   STABLE
+ora.LISTENER.lsnr
+               ONLINE  ONLINE       racdg1                   STABLE
+               ONLINE  ONLINE       racdg2                   STABLE
+ora.net1.network
+               ONLINE  ONLINE       racdg1                   STABLE
+               ONLINE  ONLINE       racdg2                   STABLE
+ora.ons
+               ONLINE  ONLINE       racdg1                   STABLE
+               ONLINE  ONLINE       racdg2                   STABLE
+ora.proxy_advm
+               OFFLINE OFFLINE      racdg1                   STABLE
+               OFFLINE OFFLINE      racdg2                   STABLE
+-------------------------------------------------------------------------
+Cluster Resources
+-------------------------------------------------------------------------
+ora.LISTENER_SCAN1.lsnr
+      1        ONLINE  ONLINE       racdg2                   STABLE
+ora.LISTENER_SCAN2.lsnr
+      1        ONLINE  ONLINE       racdg1                   STABLE
+ora.LISTENER_SCAN3.lsnr
+      1        ONLINE  ONLINE       racdg1                   STABLE
+ora.asm
+      1        ONLINE  ONLINE       racdg1                   Started,STABLE
+      2        ONLINE  ONLINE       racdg2                   Started,STABLE
+      3        OFFLINE OFFLINE                               STABLE
+ora.cvu
+      1        ONLINE  ONLINE       racdg1                   STABLE
+ora.qosmserver
+      1        OFFLINE OFFLINE                               STABLE
+ora.racdg1.vip
+      1        ONLINE  ONLINE       racdg1                   STABLE
+ora.racdg2.vip
+      1        ONLINE  ONLINE       racdg2                   STABLE
+ora.scan1.vip
+      1        ONLINE  ONLINE       racdg2                   STABLE
+ora.scan2.vip
+      1        ONLINE  ONLINE       racdg1                   STABLE
+ora.scan3.vip
+      1        ONLINE  ONLINE       racdg1                   STABLE
+-------------------------------------------------------------------------
+[grid@racdg1 ~]$
+6.2	Primary Database Configuration
+Step 2: Enable Forced Logging on Primary
+•	Forced Logging ensures all changes made to the database are logged, which is crucial for maintaining consistency during DataGuard synchronization.
+
+SQL> select name, open_mode,cdb from v$database;
+
+NAME      OPEN_MODE            CDB
+--------- -------------------- ---
+PRIMARY      READ WRITE         NO
+
+SQL> select force_logging from v$database;
+
+FORCE_LOGGING
+---------------------------------------
+NO   <---------
+
+SQL> ALTER DATABASE FORCE LOGGING;
+
+Database altered.
+
+SQL> select force_logging from v$database;
+
+FORCE_LOGGING
+---------------------------------------
+YES  <-------
+
+SQL>
+
+Step 3: Copy Password File from Primary to Standby
+•	Ensure that the standby database can authenticate with the same password file as the primary database.
+
+ASMCMD> pwd
+
++data/primary/password
+
+ASMCMD> pwcopy pwdprimary.258.1000514183 /tmp
+
+copying +data/primary/password/pwdprimary.258.1000514183 -> /tmp/pwdprimary.258.1000514183
+
+ASMCMD>
+
+
+[root@rac2 ~]# cd /tmp
+
+[root@rac2 tmp]# ls -ltr pwdprimary.258.1000514183
+
+-rw-r-----. 1 grid oinstall 2048 Feb 20 13:16 pwdprimary.258.1000514183
+
+[root@rac2 tmp]#
+
+[root@rac2 tmp]# chown oracle:oinstall pwdprimary.258.1000514183
+
+
+
+[oracle@rac2 tmp]$ ls -ltr pwdprimary.258.1000514183
+
+-rw-r-----. 1 oracle oinstall 2048 Feb 20 13:16 pwdprimary.258.1000514183
+
+[oracle@rac2 tmp]$
+
+[oracle@rac2 tmp]$ scp -p pwdprimary.258.1000514183 oracle@racdg1:/u01/app/oracle/product/19.3.0/dbhome_1/dbs/orapwSTANDBY1
+
+[oracle@rac2 tmp]$ scp -p pwdprimary.258.1000514183 oracle@racdg2:/u01/app/oracle/product/19.3.0/dbhome_1/dbs/orapwSTANDBY2
+
+Step 4: Configure Standby redo Log on Primary
+•	Standby Redo Logs play a crucial role in ensuring that redo apply operates effectively on the standby database.
+
+The standby redo logs must be the same size as the primary database online logs. The recommended number of standby redo logs is:
+
+(maximum # of logfiles +1) * maximum # of threads
+
+This example uses two online log files for each thread. Thus, the number of standby redo logs should be (2 + 1) * 2 = 6. 
+
+That is, one more standby redo log file for each thread. 
+
+-- Standy Redo logs created in the primary and RMAN will create them in standby automatically while running duplicate command.
+
+-- Standy Redo logs files come into picture only when protection mode is Maximum Availability and Maximum Protection.
+
+
+SQL> set lines 180
+
+col MEMBER for a60
+select b.thread#, a.group#, a.member, b.bytes FROM v$logfile a, v$log b WHERE a.group# = b.group#;SQL> SQL>
+
+
+  THREAD#   GROUP#                 MEMBER                       BYTES                                           
+---------- ---------- ----------------------------------------------------------
+1         2           +DATA/PRIMARY/redo02.log              209715200
+ 
+1         1           +DATA/PRIMARY/redo01.log              209715200 
+
+2         3           +DATA/PRIMARY/redo03.log              209715200 
+
+2         4           +DATA/PRIMARY/redo04.log              209715200 
+
+SQL>
+
+SQL> ALTER DATABASE ADD STANDBY LOGFILE THREAD 1
+
+GROUP 5 ('+DATA/PRIMARY/redo05.log') SIZE 200M,
+
+GROUP 6 ('+DATA/PRIMARY/redo06.log') SIZE 200M,
+
+GROUP 7 ('+DATA/PRIMARY/redo07.log') SIZE 200M;
+
+Database altered.
+
+SQL> ALTER DATABASE ADD STANDBY LOGFILE THREAD 2
+
+GROUP 8 ('+DATA/PRIMARY/redo08.log') SIZE 200M,
+
+GROUP 9 ('+DATA/PRIMARY/redo09.log') SIZE 200M,
+
+GROUP 10 ('+DATA/PRIMARY/redo10.log') SIZE 200M;
+
+Database altered.
+
+SQL> 
+
+SQL> select * from v$logfile;
+
+  GROUP# STATUS  TYPE      MEMBER                     IS_     CON_ID
+---------- ------- ------- -------------------------- --- ----------
+2         ONLINE  +DATA/PRIMARY/redo02.log         NO           0
+
+1         ONLINE  +DATA/PRIMARY/redo01.log         NO           0
+
+3         ONLINE  +DATA/PRIMARY/redo03.log         NO           0
+
+4         ONLINE  +DATA/PRIMARY/redo04.log         NO           0
+
+5         STANDBY +DATA/PRIMARY/redo05.log         NO           0
+
+6         STANDBY +DATA/PRIMARY/redo06.log         NO           0
+
+7         STANDBY +DATA/PRIMARY/redo07.log         NO           0
+
+8         STANDBY +DATA/PRIMARY/redo08.log         NO           0
+
+9         STANDBY +DATA/PRIMARY/redo09.log         NO           0
+
+10         STANDBY +DATA/PRIMARY/redo10.log        NO           0
+
+10 rows selected.
+
+SQL>
+
+SQL> select b.thread#,a.group#, a.member, b.bytes FROM v$logfile a, v$standby_log b WHERE a.group# = b.group#;
+
+   THREAD#  GROUP#        MEMBER                   BYTES                                                
+---------- ---------- --------------------------------------------------
+1          5      +DATA/PRIMARY/redo05.log      209715200
+ 
+1          6      +DATA/PRIMARY/redo06.log      209715200 
+
+1          7      +DATA/PRIMARY/redo07.log      209715200 
+
+2          8      +DATA/PRIMARY/redo08.log      209715200
+ 
+2          9      +DATA/PRIMARY/redo09.log      209715200 
+
+2         10      +DATA/PRIMARY/redo10.log      209715200
+
+6 rows selected.
+
+SQL>
+
+Step 5:Verify Archive Mode Enabled on Primary
+•	Archive mode must be enabled to generate archived redo logs for standby database synchronization.
+
+SQL> archive log list
+Database log mode              Archive Mode <------
+
+Automatic archival             Enabled
+
+Archive destination            +FRA
+
+Oldest online log sequence     5
+
+Next log sequence to archive   6
+
+Current log sequence           6
+
+SQL>
+
+Step 6: Set Primary Database Initialization Parameters
+•	Configure primary database initialization parameters to ensure proper operation of DataGuard.
+
+SQL> create pfile='/home/oracle/initPRIMARY.ora.bkp' from spfile;
+
+File created.
+
+SQL> alter system set db_unique_name='PRIMARY' scope=spfile sid='*';
+
+System altered.
+
+SQL> ALTER SYSTEM SET LOG_ARCHIVE_CONFIG='DG_CONFIG=(PRIMARY,STANDBY)' scope=both sid='*';
+System altered.
+
+SQL> ALTER SYSTEM SET LOG_ARCHIVE_DEST_1='LOCATION=+FRA VALID_FOR=(ALL_LOGFILES,ALL_ROLES) DB_UNIQUE_NAME=PRIMARY' scope=both sid='*';
+
+System altered.
+
+SQL> ALTER SYSTEM SET LOG_ARCHIVE_DEST_2='SERVICE=STANDBY LGWR ASYNC VALID_FOR=(ONLINE_LOGFILES,PRIMARY_ROLE) DB_UNIQUE_NAME=STANDBY' scope=both sid='*';
+
+System altered.
+
+SQL> ALTER SYSTEM SET LOG_ARCHIVE_DEST_STATE_1=ENABLE scope=both sid='*';
+
+System altered.
+
+SQL> ALTER SYSTEM SET LOG_ARCHIVE_DEST_STATE_2=ENABLE scope=both sid='*';
+
+System altered.
+
+SQL> ALTER SYSTEM SET fal_client=PRIMARY scope=both sid='*';
+
+System altered.
+
+SQL>
+
+Please note: The FAL_CLIENT database initialization parameter is no longer required from 11gR2
+
+SQL> ALTER SYSTEM SET fal_server=STANDBY scope=both sid='*';
+
+System altered.
+
+SQL> ALTER SYSTEM SET DB_FILE_NAME_CONVERT='+DATA_DG','+DATA' SCOPE=SPFILE sid='*';
+
+System altered.
+
+SQL> ALTER SYSTEM SET LOG_FILE_NAME_CONVERT='+DATA_DG','+DATA' SCOPE=SPFILE sid='*';
+
+System altered.
+
+SQL> ALTER SYSTEM SET STANDBY_FILE_MANAGEMENT=AUTO scope=both sid='*';
+
+System altered.
+
+SQL> create pfile='/home/oracle/initPRIMARY.ora' from spfile;
+
+	Step 7: Configure LISTENER Entries on Primary
+•	Ensure the primary database listener is configured to communicate with the standby.
+
+[oracle@rac1 ~]$ ps -ef | grep tns
+
+
+root        15     2  0 11:31 ?        00:00:00 [netns]
+
+grid      6429     1  0 11:33 ?        00:00:03 /u01/app/19.3.0/grid/bin/tnslsnr ASMNET1LSNR_ASM -no_crs_notify -inherit
+
+grid      6451     1  0 11:33 ?        00:00:00 /u01/app/19.3.0/grid/bin/tnslsnr LISTENER -no_crs_notify -inherit
+
+grid      6453     1  0 11:33 ?        00:00:00 /u01/app/19.3.0/grid/bin/tnslsnr LISTENER_SCAN3 -no_crs_notify -inherit
+
+grid      6477     1  0 11:33 ?        00:00:00 /u01/app/19.3.0/grid/bin/tnslsnr LISTENER_SCAN2 -no_crs_notify -inherit
+
+oracle   31300 16939  0 15:07 pts/0    00:00:00 grep tns
+
+[oracle@rac1 ~]$ lsnrctl status LISTENER
+
+LSNRCTL for Linux: Version 19.3.0.0.0 - Production on 20-FEB-2019 15:07:47
+
+Copyright (c) 1991, 2016, Oracle.  All rights reserved.
+
+Connecting to (ADDRESS=(PROTOCOL=tcp)(HOST=###.###.#.###)(PORT=####))
+
+STATUS of the LISTENER
+------------------------
+Alias                     LISTENER
+Version                   TNSLSNR for Linux: Version 19.3.0.0.0 – Production
+
+Start Date                20-FEB-2019 11:33:28
+
+Uptime                    0 days 3 hr. 34 min. 19 sec
+
+Trace Level               off
+
+Security                  ON: Local OS Authentication
+
+SNMP                      OFF
+
+Listener Parameter File   /u01/app/19.3.0/grid/network/admin/listener.ora
+
+Listener Log File         /u01/app/grid/diag/tnslsnr/rac1/listener/alert/log.xml
+
+Listening Endpoints Summary...
+  
+(DESCRIPTION=(ADDRESS=(PROTOCOL=ipc)(KEY=LISTENER)))
+  
+(DESCRIPTION=(ADDRESS=(PROTOCOL=tcp)(HOST=###.###.#.###)(PORT=####)))
+ 
+(DESCRIPTION=(ADDRESS=(PROTOCOL=tcp)(HOST=###.###.#.###)(PORT=####)))
+
+Services Summary...
+
+Service "+ASM" has 1 instance(s).
+ 
+ Instance "+ASM1", status READY, has 1 handler(s) for this service...
+
+Service "+ASM_DATA" has 1 instance(s).
+ 
+ Instance "+ASM1", status READY, has 1 handler(s) for this service...
+
+Service "+ASM_FRA" has 1 instance(s).
+ 
+ Instance "+ASM1", status READY, has 1 handler(s) for this service...
+
+Service "PRIMARY" has 1 instance(s).
+ 
+ Instance "PRIMARY1", status READY, has 1 handler(s) for this service...
+
+Service "PRIMARYXDB" has 1 instance(s).
+ 
+ Instance "PRIMARY1", status READY, has 1 handler(s) for this service...
+
+The command completed successfully
+
+[oracle@rac1 ~]$
+
+[oracle@rac1 ~]$ lsnrctl status LISTENER_SCAN3
+
+LSNRCTL for Linux: Version 19.3.0.0.0 - Production on 20-FEB-2019 15:37:28
+
+Copyright (c) 1991, 2016, Oracle.  All rights reserved.
+
+Connecting to
+
+(DESCRIPTION=(ADDRESS=(PROTOCOL=IPC)(KEY=LISTENER_SCAN3)))
+
+STATUS of the LISTENER
+
+------------------------
+
+Alias                     LISTENER_SCAN3
+
+Version                   TNSLSNR for Linux: Version 19.3.0.0.0 - Production
+
+Start Date                20-FEB-2019 11:33:28
+
+Uptime                    0 days 4 hr. 4 min. 0 sec
+
+Trace Level               off
+
+Security                  ON: Local OS Authentication
+
+SNMP                      OFF
+
+Listener Parameter File   /u01/app/19.3.0/grid/network/admin/listener.ora
+
+Listener Log File         /u01/app/grid/diag/tnslsnr/rac1/listener_scan3/alert/log.xml
+
+Listening Endpoints Summary...
+ 
+ (DESCRIPTION=(ADDRESS=(PROTOCOL=ipc)(KEY=LISTENER_SCAN3)))
+ 
+ (DESCRIPTION=(ADDRESS=(PROTOCOL=tcp)(HOST=###.###.#.###)(PORT=####)))
+
+Services Summary...
+
+Service "PRIMARY" has 2 instance(s).
+ 
+ Instance "PRIMARY1", status READY, has 1 handler(s) for this service...
+ 
+ Instance "PRIMARY2", status READY, has 1 handler(s) for this service...
+
+Service "PRIMARYXDB" has 2 instance(s).
+ 
+ Instance "PRIMARY1", status READY, has 1 handler(s) for this service...
+ 
+ Instance "PRIMARY2", status READY, has 1 handler(s) for this service...
+
+The command completed successfully
+
+[oracle@rac1 ~]$
+
+[oracle@rac1 ~]$ lsnrctl status LISTENER_SCAN2
+
+
+LSNRCTL for Linux: Version 19.3.0.0.0 - Production on 20-FEB-2019 15:37:40
+
+Copyright (c) 1991, 2016, Oracle.  All rights reserved.
+
+Connecting to 
+
+(DESCRIPTION=(ADDRESS=(PROTOCOL=IPC)(KEY=LISTENER_SCAN2)))
+
+STATUS of the LISTENER
+
+------------------------
+
+Alias                     LISTENER_SCAN2
+
+Version                   TNSLSNR for Linux: Version 19.3.0.0.0 - Production
+
+Start Date                20-FEB-2019 11:33:29
+
+Uptime                    0 days 4 hr. 4 min. 11 sec
+
+Trace Level               off
+
+Security                  ON: Local OS Authentication
+
+SNMP                      OFF
+
+Listener Parameter File   /u01/app/19.3.0/grid/network/admin/listener.ora
+
+Listener Log File         /u01/app/grid/diag/tnslsnr/rac1/listener_scan2/alert/log.xml
+
+Listening Endpoints Summary...
+ 
+ (DESCRIPTION=(ADDRESS=(PROTOCOL=ipc)(KEY=LISTENER_SCAN2)))
+ 
+ (DESCRIPTION=(ADDRESS=(PROTOCOL=tcp)(HOST=###.###.#.###)(PORT=####)))
+
+Services Summary...
+
+Service "PRIMARY" has 2 instance(s).
+ 
+ Instance "PRIMARY1", status READY, has 1 handler(s) for this service...
+  
+Instance "PRIMARY2", status READY, has 1 handler(s) for this service...
+
+Service "PRIMARYXDB" has 2 instance(s).
+  
+Instance "PRIMARY1", status READY, has 1 handler(s) for this service...
+
+  Instance "PRIMARY2", status READY, has 1 handler(s) for this service...
+
+The command completed successfully
+
+[oracle@rac1 ~]$
+
+
+[oracle@rac1 ~]$ cat
+ /u01/app/19.3.0/grid/network/admin/listener.ora
+
+LISTENER_SCAN3=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=IPC)(KEY=LISTENER_SCAN3))))                # line added by Agent
+
+LISTENER_SCAN2=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=IPC)(KEY=LISTENER_SCAN2))))                # line added by Agent
+
+# listener.ora Network Configuration File: /u01/app/19.3.0/grid/network/admin/listener.ora
+
+# Generated by Oracle configuration tools.
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_LISTENER_SCAN1 = ON
+VALID_NODE_CHECKING_REGISTRATION_LISTENER_SCAN1 = OFF
+
+VALID_NODE_CHECKING_REGISTRATION_ASMNET1LSNR_ASM = SUBNET
+
+ASMNET1LSNR_ASM =
+ 
+ (DESCRIPTION =
+  
+  (ADDRESS_LIST =
+    
+  (ADDRESS = (PROTOCOL = IPC)(KEY = ASMNET1LSNR_ASM))
+   
+ )
+ 
+ )
+
+VALID_NODE_CHECKING_REGISTRATION_LISTENER = SUBNET
+
+LISTENER =
+ 
+ (DESCRIPTION =
+    
+(ADDRESS_LIST =
+     
+ (ADDRESS = (PROTOCOL = IPC)(KEY = LISTENER))
+    
+)
+
+  )
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_ASMNET1LSNR_ASM = ON
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_LISTENER = ON
+
+LISTENER_SCAN1 =
+
+  (DESCRIPTION =
+
+    (ADDRESS_LIST =
+
+      (ADDRESS = (PROTOCOL = IPC)(KEY = LISTENER_SCAN1))
+
+    )
+
+  )
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_LISTENER_SCAN2=ON                # line added by Agent
+
+VALID_NODE_CHECKING_REGISTRATION_LISTENER_SCAN2=OFF             # line added by Agent
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_LISTENER_SCAN3=ON                # line added by Agent
+
+VALID_NODE_CHECKING_REGISTRATION_LISTENER_SCAN3=OFF             # line added by Agent
+
+[oracle@rac1 ~]$
+
+[grid@rac2 admin]$ cat listener.ora  <--- 2nd node of Primary 
+
+LISTENER_SCAN3=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=IPC)(KEY=LISTENER_SCAN3))))                # line added by Agent
+
+LISTENER_SCAN2=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=IPC)(KEY=LISTENER_SCAN2))))                # line added by Agent
+
+LISTENER_SCAN1=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=IPC)(KEY=LISTENER_SCAN1))))                # line added by Agent
+
+LISTENER=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=IPC)(KEY=LISTENER))))            # line added by Agent
+
+ASMNET1LSNR_ASM=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=IPC)(KEY=ASMNET1LSNR_ASM))))              # line added by Agent
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_ASMNET1LSNR_ASM=ON               # line added by Agent
+
+VALID_NODE_CHECKING_REGISTRATION_ASMNET1LSNR_ASM=SUBNET         # line added by Agent
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_LISTENER=ON              # line added by Agent
+
+VALID_NODE_CHECKING_REGISTRATION_LISTENER=SUBNET                # line added by Agent
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_LISTENER_SCAN1=ON                # line added by Agent
+
+VALID_NODE_CHECKING_REGISTRATION_LISTENER_SCAN1=OFF             # line added by Agent
+
+REGISTRATION_INVITED_NODES_LISTENER_SCAN1=()            # line added by Agent
+
+REGISTRATION_INVITED_NODES_LISTENER=()          # line added by Agent
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_LISTENER_SCAN2=ON                # line added by Agent
+
+VALID_NODE_CHECKING_REGISTRATION_LISTENER_SCAN2=OFF             # line added by Agent
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_LISTENER_SCAN3=ON                # line added by Agent
+VALID_NODE_CHECKING_REGISTRATION_LISTENER_SCAN3=OFF             # line added by Agent
+
+[grid@rac2 admin]$
+
+Step 8: Configure TNS Entries on Primary
+•	Set up TNS entries on the primary database to establish connectivity with the standby.
+
+[oracle@rac1 admin]$ cat tnsnames.ora
+
+# tnsnames.ora Network Configuration File: /u01/app/oracle/product/19.3.0/dbhome_1/network/admin/tnsnames.ora
+
+# Generated by Oracle configuration tools.
+
+
+PRIMARY =
+ 
+ (DESCRIPTION =
+  
+  (ADDRESS = (PROTOCOL = TCP)(HOST = rac-scan)(PORT = ####))
+    
+(CONNECT_DATA =
+     
+ (SERVER = DEDICATED)
+     
+ (SERVICE_NAME = PRIMARY)
+ 
+   )
+ 
+ )
+
+STANDBY =
+  
+(DESCRIPTION =
+  
+  (ADDRESS = (PROTOCOL = TCP)(HOST = racdg-scan)(PORT = ####))
+   
+ (CONNECT_DATA =
+     
+ (SERVER = DEDICATED)
+    
+  (SERVICE_NAME = STANDBY)(UR=A)
+ 
+   )
+
+  )
+
+
+[oracle@rac1 admin]$
+
+
+[oracle@rac2 admin]$ cat tnsnames.ora  <--- 2nd node of Primary
+
+# tnsnames.ora Network Configuration File: /u01/app/oracle/product/19.3.0/dbhome_1/network/admin/tnsnames.ora
+
+# Generated by Oracle configuration tools.
+
+PRIMARY =
+ 
+ (DESCRIPTION =
+   
+ (ADDRESS = (PROTOCOL = TCP)(HOST = rac-scan)(PORT = ####))
+   
+ (CONNECT_DATA =
+     
+ (SERVER = DEDICATED)
+      
+(SERVICE_NAME = PRIMARY)
+ 
+   )
+  
+)
+
+
+STANDBY =
+ 
+ (DESCRIPTION =
+   
+ (ADDRESS = (PROTOCOL = TCP)(HOST = racdg-scan)(PORT = ####))
+    
+(CONNECT_DATA =
+    
+  (SERVER = DEDICATED)
+     
+ (SERVICE_NAME = STANDBY)(UR=A)
+    )
+  )
+
+
+[oracle@rac2 admin]$
+
+
+[oracle@rac1 ~]$ tnsping primary
+
+TNS Ping Utility for Linux: Version 19.3.0.0.0 - Production on 20-FEB-2019 15:24:20
+
+Copyright (c) 1997, 2016, Oracle.  All rights reserved.
+
+Used parameter files:
+
+/u01/app/oracle/product/19.3.0/dbhome_1/network/admin/sqlnet.ora
+
+
+
+
+Used TNSNAMES adapter to resolve the alias
+
+Attempting to contact (DESCRIPTION = (ADDRESS = (PROTOCOL = TCP)(HOST = rac-scan)(PORT = ####)) (CONNECT_DATA = (SERVER = DEDICATED) (SERVICE_NAME = PRIMARY)))
+
+OK (10 msec)
+
+[oracle@rac1 ~]$
+
+[oracle@rac1 ~]$ tnsping standby
+
+
+TNS Ping Utility for Linux: Version 19.3.0.0.0 - Production on 20-FEB-2019 16:26:23
+
+Copyright (c) 1997, 2016, Oracle.  All rights reserved.
+
+Used parameter files:
+
+/u01/app/oracle/product/19.3.0/dbhome_1/network/admin/sqlnet.ora
+
+
+Used TNSNAMES adapter to resolve the alias
+
+Attempting to contact (DESCRIPTION = (ADDRESS = (PROTOCOL = TCP)(HOST = racdg-scan)(PORT = ####)) (CONNECT_DATA = (SERVER = DEDICATED) (SERVICE_NAME = STANDBY)(UR=A)))
+
+OK (0 msec)
+
+[oracle@rac1 ~]$
+6.3	Standby Database Configuration
+Step 9: Set Standby Database Initialization Parameters
+•	Configure standby database initialization parameters for synchronization with the primary.
+
+[oracle@racdg1 dbs]$ cat initSTANDBY1.ora
+
+STANDBY1.__data_transfer_cache_size=0
+
+STANDBY1.__db_cache_size=520093696
+
+STANDBY1.__inmemory_ext_roarea=0
+
+STANDBY1.__inmemory_ext_rwarea=0
+
+STANDBY1.__java_pool_size=4194304
+
+STANDBY1.__large_pool_size=8388608
+
+STANDBY1.__oracle_base='/u01/app/oracle'#ORACLE_BASE set from environment
+
+STANDBY1.__pga_aggregate_target=301989888
+
+STANDBY1.__sga_target=905969664
+
+STANDBY1.__shared_io_pool_size=37748736
+
+STANDBY1.__shared_pool_size=322961408
+
+STANDBY1.__streams_pool_size=0
+
+*.audit_file_dest='/u01/app/oracle/admin/STANDBY/adump'
+
+*.audit_trail='db'
+
+*.cluster_database=false
+*.compatible='19.3.0'
+
+*.control_files=’+DATA_DG/STANDBY/control01.ctl’,’+DATA_DG/STANDBY/control02.ctl’
+
+*.db_block_size=8192
+
+*.db_file_name_convert='+DATA/PRIMARY','+DATA_DG/STANDBY'
+
+*.db_name='PRIMARY'
+
+*.db_recovery_file_dest='+DATA_DG'
+
+*.db_recovery_file_dest_size=8016m
+
+*.db_unique_name=’STANDBY’
+
+*.diagnostic_dest='/u01/app/oracle'
+
+*.dispatchers='(PROTOCOL=TCP) (SERVICE=STANDBYXDB)'
+
+*.fal_client='STANDBY'
+
+*.fal_server='PRIMARY'
+
+family:dw_helper.instance_mode='read-only'
+
+*.instance_name=’STANDBY1’
+
+STANDBY1.instance_number=1
+
+*.log_archive_config='DG_CONFIG=(PRIMARY,STANDBY)'
+
+*.log_archive_dest_1='LOCATION=+DATA_DG VALID_FOR=(ALL_LOGFILES,ALL_ROLES) DB_UNIQUE_NAME=STANDBY'
+
+*.log_archive_dest_2='SERVICE=PRIMARY LGWR ASYNC VALID_FOR=(ONLINE_LOGFILES,PRIMARY_ROLE) DB_UNIQUE_NAME=PRIMARY'
+
+*.log_archive_dest_state_1='ENABLE'
+
+*.log_archive_dest_state_2='ENABLE'
+
+*.log_archive_format='%t_%s_%r.dbf'
+
+*.log_file_name_convert='+DATA/PRIMARY','+DATA_DG/STANDBY'
+
+*.nls_language='AMERICAN'
+
+*.nls_territory='AMERICA'
+
+*.open_cursors=300
+
+*.pga_aggregate_target=288m
+
+*.processes=300
+
+*.remote_listener='racdg-scan:####'
+
+*.remote_login_passwordfile='exclusive'
+*.sga_target=864m
+
+*.standby_file_management='AUTO'
+
+STANDBY1.thread=1
+
+STANDBY1.undo_tablespace='UNDOTBS1'
+
+[oracle@racdg1 dbs]$
+
+
+Step 10: Create required directories on Standby
+•	Create necessary directories on standby for file storage.
+
+[oracle@racdg1 ~]$ mkdir -p /u01/app/oracle/admin/STANDBY/adump
+
+[oracle@racdg2 ~]$ mkdir -p /u01/app/oracle/admin/STANDBY/adump
+
+ Step 11: Add below entry in ORATAB on Standby
+•	ORATAB entry is required for automatic database startup/shutdown.
+
+[oracle@racdg1 ~]$ echo 
+"PRIMARY:/u01/app/oracle/product/19.3.0/dbhome_1:N" >> /etc/oratab
+
+[oracle@racdg1 ~]$ echo "STANDBY1:/u01/app/oracle/product/19.3.0/dbhome_1:N" >> /etc/oratab
+
+[oracle@racdg2 ~]$ echo "PRIMARY:/u01/app/oracle/product/19.3.0/dbhome_1:N" >> /etc/oratab
+
+[oracle@racdg2 ~]$ echo "STANDBY2:/u01/app/oracle/product/19.3.0/dbhome_1:N" >> /etc/oratab
+
+ Step 12: Startup nomount
+•	Start the standby database in NOMOUNT mode for further configuration.
+
+SQL> startup nomount 
+pfile='/u01/app/oracle/product/19.3.0/dbhome_1/dbs/initSTANDBY1.ora';
+
+ORACLE instance started.
+
+Total System Global Area  905969664 bytes
+
+Fixed Size                  8627008 bytes
+
+Variable Size             348130496 bytes
+
+Database Buffers          545259520 bytes
+
+Redo Buffers                3952640 bytes
+
+SQL> 
+
+ Step 13: Configure LISTENER Entries on Standby
+•	Configure listener entries on standby to facilitate communication with the primary.
+
+[oracle@racdg1 ~]$ ps -ef | grep tns
+
+root        15     2  0 11:36 ?        00:00:00 [netns]
+
+oracle    2239 31551  0 15:38 pts/0    00:00:00 grep tns
+grid      6070     1  0 11:38 ?        00:00:04 /u01/app/19.3.0/grid/bin/tnslsnr ASMNET1LSNR_ASM -no_crs_notify -inherit
+
+grid      6090     1  0 11:38 ?        00:00:00 /u01/app/19.3.0/grid/bin/tnslsnr LISTENER_SCAN3 -no_crs_notify -inherit
+
+grid      6099     1  0 11:38 ?        00:00:00 /u01/app/19.3.0/grid/bin/tnslsnr LISTENER -no_crs_notify -inherit
+
+grid      6122     1  0 11:38 ?        00:00:00 /u01/app/19.3.0/grid/bin/tnslsnr LISTENER_SCAN2 -no_crs_notify -inherit
+
+[oracle@racdg1 ~]$
+
+[grid@racdg1 ~]$ lsnrctl status LISTENER
+
+LSNRCTL for Linux: Version 19.3.0.0.0 - Production on 23-FEB-2019 23:55:46
+
+Copyright (c) 1991, 2016, Oracle.  All rights reserved.
+
+Connecting to (DESCRIPTION=(ADDRESS=(PROTOCOL=IPC)(KEY=LISTENER)))
+
+STATUS of the LISTENER
+
+------------------------
+
+Alias                     LISTENER
+Version                   TNSLSNR for Linux: Version 19.3.0.0.0 - Production
+
+Start Date                23-FEB-2019 12:52:44
+
+Uptime                    0 days 11 hr. 3 min. 2 sec
+
+Trace Level               off
+
+Security                  ON: Local OS Authentication
+
+SNMP                      OFF
+
+Listener Parameter File   /u01/app/19.3.0/grid/network/admin/listener.ora
+
+Listener Log File         /u01/app/grid/diag/tnslsnr/racdg1/listener/alert/log.xml
+
+Listening Endpoints Summary...
+
+  (DESCRIPTION=(ADDRESS=(PROTOCOL=ipc)(KEY=LISTENER)))
+
+  (DESCRIPTION=(ADDRESS=(PROTOCOL=tcp)(HOST=###.###.#.###)(PORT=####)))
+
+  (DESCRIPTION=(ADDRESS=(PROTOCOL=tcp)(HOST=###.###.#.###)(PORT=####)))
+
+Services Summary...
+
+Service "+ASM" has 1 instance(s).
+ 
+ Instance "+ASM1", status READY, has 1 handler(s) for this service...
+
+Service "+ASM_DATA" has 1 instance(s).
+ 
+ Instance "+ASM1", status READY, has 1 handler(s) for this service...
+
+Service "+ASM_DATA_DG" has 1 instance(s).
+  
+Instance "+ASM1", status READY, has 1 handler(s) for this service...
+
+Service "STANDBY" has 1 instance(s).
+ 
+ Instance "STANDBY1", status UNKNOWN, has 1 handler(s) for this service...
+
+The command completed successfully
+
+[grid@racdg1 ~]$
+
+
+[grid@racdg1 ~]$ cat 
+/u01/app/19.3.0/grid/network/admin/listener.ora
+
+# listener.ora Network Configuration File: /u01/app/19.3.0/grid/network/admin/listener.ora
+
+# Generated by Oracle configuration tools.
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_LISTENER_SCAN3 = ON
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_LISTENER_SCAN2 = ON
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_LISTENER_SCAN1 = ON
+
+VALID_NODE_CHECKING_REGISTRATION_LISTENER_SCAN3 = OFF
+
+VALID_NODE_CHECKING_REGISTRATION_LISTENER_SCAN2 = OFF
+
+SID_LIST_LISTENER =
+
+  (SID_LIST =
+    
+(SID_DESC =
+
+      (GLOBAL_DBNAME = STANDBY)
+      
+(ORACLE_HOME = /u01/app/oracle/product/19.3.0/dbhome_1)
+     
+ (SID_NAME = STANDBY)
+ 
+   )
+ 
+ )
+
+VALID_NODE_CHECKING_REGISTRATION_LISTENER_SCAN1 = OFF
+
+VALID_NODE_CHECKING_REGISTRATION_ASMNET1LSNR_ASM = SUBNET
+
+ASMNET1LSNR_ASM =
+ 
+ (DESCRIPTION =
+   
+ (ADDRESS = (PROTOCOL = IPC)(KEY = ASMNET1LSNR_ASM))
+ 
+ )
+
+
+VALID_NODE_CHECKING_REGISTRATION_LISTENER = SUBNET
+
+LISTENER =
+ 
+ (DESCRIPTION =
+   
+ (ADDRESS = (PROTOCOL = IPC)(KEY = LISTENER))
+ 
+ )
+
+ADR_BASE_LISTENER = /u01/app/grid
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_ASMNET1LSNR_ASM = ON
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_LISTENER = ON
+
+ADR_BASE_ASMNET1LSNR_ASM = /u01/app/grid
+
+LISTENER_SCAN3 =
+  
+(DESCRIPTION =
+    
+(ADDRESS = (PROTOCOL = IPC)(KEY = LISTENER_SCAN3))
+ 
+ )
+
+LISTENER_SCAN2 =
+  
+(DESCRIPTION =
+    
+(ADDRESS = (PROTOCOL = IPC)(KEY = LISTENER_SCAN2))
+ 
+ )
+
+ADR_BASE_LISTENER_SCAN3 = /u01/app/grid
+
+LISTENER_SCAN1 =
+  
+(DESCRIPTION =
+    
+(ADDRESS = (PROTOCOL = IPC)(KEY = LISTENER_SCAN1))
+ 
+ )
+
+ADR_BASE_LISTENER_SCAN2 = /u01/app/grid
+
+ADR_BASE_LISTENER_SCAN1 = /u01/app/grid
+
+
+[grid@racdg1 ~]$
+
+[grid@racdg2 admin]$ cat listener.ora  <--- 2nd of standby
+
+LISTENER_SCAN2=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=IPC)(KEY=LISTENER_SCAN2))))                # line added by Agent
+
+LISTENER_SCAN3=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=IPC)(KEY=LISTENER_SCAN3))))                # line added by Agent
+
+LISTENER_SCAN1=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=IPC)(KEY=LISTENER_SCAN1))))                # line added by Agent
+
+# listener.ora Network Configuration File: /u01/app/19.3.0/grid/network/admin/listener.ora
+
+# Generated by Oracle configuration tools.
+
+VALID_NODE_CHECKING_REGISTRATION_ASMNET1LSNR_ASM = SUBNET
+
+ASMNET1LSNR_ASM =
+ 
+ (DESCRIPTION =
+   
+ (ADDRESS_LIST =
+     
+ (ADDRESS = (PROTOCOL = IPC)(KEY = ASMNET1LSNR_ASM))
+   
+ )
+ 
+ )
+
+VALID_NODE_CHECKING_REGISTRATION_LISTENER = SUBNET
+
+LISTENER =
+ 
+ (DESCRIPTION =
+
+    (ADDRESS_LIST =
+
+      (ADDRESS = (PROTOCOL = IPC)(KEY = LISTENER))
+
+    )
+
+  )
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_ASMNET1LSNR_ASM = ON
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_LISTENER = ON
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_LISTENER_SCAN1=ON                # line added by Agent
+
+VALID_NODE_CHECKING_REGISTRATION_LISTENER_SCAN1=OFF             # line added by Agent
+
+REGISTRATION_INVITED_NODES_LISTENER_SCAN1=()            # line added by Agent
+
+REGISTRATION_INVITED_NODES_LISTENER=()          # line added by Agent
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_LISTENER_SCAN3=ON                # line added by Agent
+
+VALID_NODE_CHECKING_REGISTRATION_LISTENER_SCAN3=OFF             # line added by Agent
+
+ENABLE_GLOBAL_DYNAMIC_ENDPOINT_LISTENER_SCAN2=ON                # line added by Agent
+
+VALID_NODE_CHECKING_REGISTRATION_LISTENER_SCAN2=OFF             # line added by Agent
+
+[grid@racdg2 admin]$
+
+Step 14: Configure TNS Entries on Standby
+•	Set up TNS entries on standby for connectivity with the primary.
+
+[oracle@racdg1 admin]$ cat tnsnames.ora
+# tnsnames.ora Network Configuration File: /u01/app/oracle/product/19.3.0/dbhome_1/network/admin/tnsnames.ora
+
+# Generated by Oracle configuration tools.
+
+PRIMARY =
+  
+(DESCRIPTION =
+
+    (ADDRESS = (PROTOCOL = TCP)(HOST = rac-scan)(PORT = ####))
+
+    (CONNECT_DATA =
+
+      (SERVER = DEDICATED)
+
+      (SERVICE_NAME = PRIMARY)
+
+    )
+
+  )
+
+STANDBY =
+ 
+ (DESCRIPTION =
+
+    (ADDRESS = (PROTOCOL = TCP)(HOST = racdg-scan)(PORT = ####))
+
+    (CONNECT_DATA =
+
+      (SERVER = DEDICATED)
+
+      (SERVICE_NAME = STANDBY) (UR=A)
+
+    )
+
+  )
+
+
+[oracle@racdg1 admin]$
+
+[oracle@racdg2 admin]$ cat tnsnames.ora  <--- 2nd node of Standby 
+# tnsnames.ora Network Configuration File: /u01/app/oracle/product/19.3.0/dbhome_1/network/admin/tnsnames.ora
+
+# Generated by Oracle configuration tools.
+
+PRIMARY =
+
+  (DESCRIPTION =
+
+    (ADDRESS = (PROTOCOL = TCP)(HOST = rac-scan)(PORT = ####))
+
+    (CONNECT_DATA =
+
+      (SERVER = DEDICATED)
+
+      (SERVICE_NAME = PRIMARY)
+
+    )
+
+  )
+
+
+STANDBY =
+
+  (DESCRIPTION =
+
+    (ADDRESS = (PROTOCOL = TCP)(HOST = racdg-scan)(PORT = ####))
+
+    (CONNECT_DATA =
+
+      (SERVER = DEDICATED)
+
+      (SERVICE_NAME = STANDBY) (UR=A)
+
+    )
+
+  )
+
+
+[oracle@racdg2 admin]$
+
+
+ Step 15: Verify TNS connectivity
+•	Ensure TNS connectivity between the primary and standby databases.
+
+On Primary
+
+[oracle@rac1 ~]$ sqlplus sys/sys@primary as sysdba
+
+SQL*Plus: Release 19.3.0.0.0 Production on Wed Feb 20 16:28:46 2019
+
+Copyright (c) 1982, 2016, Oracle.  All rights reserved.
+
+
+Connected to:
+Oracle Database 12c Enterprise Edition Release 19.3.0.0.0 - 64bit Production
+
+SQL>
+
+
+[oracle@rac1 ~]$ sqlplus sys/sys@standby as sysdba
+
+SQL*Plus: Release 19.3.0.0.0 Production on Wed Feb 20 16:28:54 2019
+
+Copyright (c) 1982, 2016, Oracle.  All rights reserved.
+
+
+Connected to:
+
+Oracle Database 12c Enterprise Edition Release 19.3.0.0.0 - 64bit Production
+
+SQL>
+
+On Standby
+
+[oracle@racdg1 ~]$ sqlplus sys/sys@primary as sysdba
+
+SQL*Plus: Release 19.3.0.0.0 Production on Wed Feb 20 16:29:28 2019
+
+Copyright (c) 1982, 2016, Oracle.  All rights reserved.
+
+
+Connected to:
+Oracle Database 12c Enterprise Edition Release 19.3.0.0.0 - 64bit Production
+
+SQL>
+
+[oracle@racdg1 ~]$ sqlplus sys/sys@standby as sysdba
+
+SQL*Plus: Release 19.3.0.0.0 Production on Wed Feb 20 16:29:35 2019
+
+Copyright (c) 1982, 2016, Oracle.  All rights reserved.
+
+
+Connected to:
+
+Oracle Database 12c Enterprise Edition Release 19.3.0.0.0 - 64bit Production
+
+SQL>
+
+Step 16:  Run the duplicate command
+•	Use the “DUPLICATE” command to create a standby database from the primary.
+
+Please note DB_CREATE_FILE_DEST parameter cannot be set together with DB_FILE_NAME_CONVERT during RMAN active duplication.
+
+[oracle@racdg1 ~]$ rman target sys/sys@PRIMARY auxiliary sys/sys@STANDBY
+
+Recovery Manager: Release 19.3.0.0.0 - Production on Sat Feb 23 23:41:12 2019
+
+Copyright (c) 1982, 2017, Oracle and/or its affiliates.  All rights reserved.
+
+connected to target database: PRIMARY (DBID=3971311101)
+
+connected to auxiliary database: PRIMARY (not mounted)
+
+RMAN> duplicate target database for standby from active database nofilenamecheck;
+
+ Step 17: Verify Standby redo logs
+•	Ensure standby redo logs are properly configured for redo apply on standby.
+
+SQL> select * from v$logfile;
+
+GROUP#     STATUSTYPE      MEMBER                  IS_       CON_ID                                                      
+---------- ------- ------- ---------------------------------------------
+2         ONLINE  +DATA_DG/STANDBY/redo02.log   NO          0 
+
+1         ONLINE  +DATA_DG/STANDBY/redo01.log   NO          0 
+
+3         ONLINE  +DATA_DG/STANDBY/redo03.log   NO          0 
+
+4         ONLINE  +DATA_DG/STANDBY/redo04.log   NO          0 
+
+5         STANDBY +DATA_DG/STANDBY/redo05.log   NO          0
+
+6         STANDBY +DATA_DG/STANDBY/redo06.log   NO          0
+
+7         STANDBY +DATA_DG/STANDBY/redo07.log   NO          0 
+
+8         STANDBY +DATA_DG/STANDBY/redo08.log   NO          0 
+
+9         STANDBY +DATA_DG/STANDBY/redo09.log   NO          0 
+
+10        STANDBY +DATA_DG/STANDBY/redo10.log   NO          0 
+
+10 rows selected.
+
+SQL> select b.thread#,a.group#, a.type, a.member, b.bytes FROM v$logfile a, v$standby_log b WHERE a.group# = b.group#;
+
+
+
+   THREAD#  GROUP#      TYPE       MEMBER                BYTES
+---------- ---------- ------- ------------------------------------------
+1          5       STANDBY +DATA_DG/STANDBY/redo05.log 209715200
+
+1          6       STANDBY +DATA_DG/STANDBY/redo06.log 209715200
+
+1          7       STANDBY +DATA_DG/STANDBY/redo07.log 209715200
+
+2          8       STANDBY +DATA_DG/STANDBY/redo08.log 209715200
+
+2          9       STANDBY +DATA_DG/STANDBY/redo09.log 209715200
+
+2         10       STANDBY +DATA_DG/STANDBY/redo10.log 209715200
+
+6 rows selected.
+
+SQL>
+
+Step 18: Create a spfile
+•	Create a SPFILE for standby database operation.
+
+SQL> create spfile='+DATA_DG/STANDBY/PARAMETERFILE/spfileSTANDBY.ora' from pfile='/u01/app/oracle/product/19.3.0/dbhome_1/dbs/initSTANDBY1.ora';
+
+File created.
+
+SQL> shut immediate;
+
+ORA-01109: database not open
+
+
+Database dismounted.
+
+ORACLE instance shut down.
+
+SQL> 
+
+[oracle@racdg1 ~]$ cd $ORACLE_HOME/dbs
+
+[oracle@racdg1 dbs]$ ls -ltr initSTANDBY1.ora
+
+-rw-r--r--. 1 oracle oinstall 1802 Feb 23 23:40 initSTANDBY1.ora
+
+[oracle@racdg1 dbs]$ mv initSTANDBY1.ora initSTANDBY1.ora.bkp
+
+[oracle@racdg1 dbs]$ echo "SPFILE='+DATA_DG/STANDBY/PARAMETERFILE/spfileSTANDBY.ora'" > initSTANDBY1.ora
+
+[oracle@racdg1 dbs]$ scp initSTANDBY1.ora oracle@racdg2:/u01/app/oracle/product/19.3.0/dbhome_1/dbs/initSTANDBY2.ora
+
+initSTANDBY1.ora                                             100%   58     0.1KB/s   00:00
+
+[oracle@racdg1 dbs]$
+
+SQL> startup mount;
+
+ORACLE instance started.
+
+Total System Global Area 1269366784 bytes
+
+Fixed Size                  2252864 bytes
+
+Variable Size             805310400 bytes
+
+Database Buffers          452984832 bytes
+
+Redo Buffers                8818688 bytes
+
+Database mounted.
+
+SQL> 
+
+Step 19: Add init parameters for Instance 2 
+•	Add initialization parameters for standby instance 2.
+
+SQL> alter system set undo_tablespace=UNDOTBS2 sid='STANDBY2' scope=spfile;
+
+System altered.
+
+SQL> alter system set instance_number=1 sid='STANDBY1' scope=spfile;
+
+System altered.
+
+SQL> alter system set instance_number=2 sid='STANDBY2' scope=spfile;
+
+System altered.
+
+SQL> alter system set instance_name='STANDBY1' sid='STANDBY1' scope=spfile;
+
+System altered.
+
+SQL> alter system set instance_name='STANDBY2' sid='STANDBY2' scope=spfile;
+
+System altered.
+
+SQL> alter system set thread=1 sid='STANDBY1' scope=spfile;
+
+System altered.
+
+SQL> alter system set thread=2 sid='STANDBY2' scope=spfile;
+
+System altered.
+
+SQL> alter system set cluster_database=TRUE scope=spfile;
+
+System altered.
+
+SQL> alter system set remote_listener='racdg-scan:####' scope=spfile;
+
+System altered.
+
+SQL> 
+
+
+SQL> shut immediate;
+
+ORA-01109: database not open
+
+
+Database dismounted.
+
+ORACLE instance shut down.
+SQL>
+
+SQL> startup mount;
+
+ORACLE instance started.
+
+Total System Global Area 1269366784 bytes
+
+Fixed Size                  2252864 bytes
+
+Variable Size             805310400 bytes
+
+Database Buffers          452984832 bytes
+
+Redo Buffers                8818688 bytes
+
+Database mounted.
+
+SQL> 
+
+
+SQL> select name,open_mode,database_role,cdb from v$database;
+
+NAME      OPEN_MODE            DATABASE_ROLE    CDB
+--------- -------------------- ---------------- ---
+PRIMARY      MOUNTED            PHYSICAL STANDBY NO
+
+SQL>
+
+ Step 20: Add database to OCR
+•	Add the standby database to Oracle Cluster Registry (OCR) for high availability configurations.
+
+[oracle@racdg1 dbs]$ srvctl add database -db STANDBY -oraclehome /u01/app/oracle/product/19.3.0/dbhome_1 -role physical_standby -startoption mount -spfile +DATA_DG/STANDBY/PARAMETERFILE/spfileSTANDBY.ora
+
+[oracle@racdg1 dbs]$
+
+[oracle@racdg1 dbs]$ srvctl add instance -db STANDBY -instance STANDBY1 -node racdg1
+
+[oracle@racdg1 dbs]$ srvctl add instance -db STANDBY -instance STANDBY2 -node racdg2
+
+[oracle@racdg1 dbs]$
+
+[oracle@racdg1 dbs]$ srvctl start database -d STANDBY
+
+[oracle@racdg1 dbs]$ srvctl status database -d STANDBY
+
+Instance STANDBY1 is running on node racdg1
+
+Instance STANDBY2 is running on node racdg2
+
+[oracle@racdg1 dbs]$
+
+
+[grid@racdg1 trace]$ crsctl stat res -t
+------------------------------------------------------------------------
+Name           Target  State        Server                   State details
+------------------------------------------------------------------------
+Local Resources
+------------------------------------------------------------------------
+ora.ASMNET1LSNR_ASM.lsnr
+               ONLINE  ONLINE       racdg1                   STABLE
+               ONLINE  ONLINE       racdg2                   STABLE
+ora.DATA.dg
+               ONLINE  ONLINE       racdg1                   STABLE
+               ONLINE  ONLINE       racdg2                   STABLE
+ora.DATA_DG.dg
+               ONLINE  ONLINE       racdg1                   STABLE
+               ONLINE  ONLINE       racdg2                   STABLE
+ora.LISTENER.lsnr
+               ONLINE  ONLINE       racdg1                   STABLE
+               ONLINE  ONLINE       racdg2                   STABLE
+ora.net1.network
+               ONLINE  ONLINE       racdg1                   STABLE
+               ONLINE  ONLINE       racdg2                   STABLE
+ora.ons
+               ONLINE  ONLINE       racdg1                   STABLE
+               ONLINE  ONLINE       racdg2                   STABLE
+ora.proxy_advm
+               OFFLINE OFFLINE      racdg1                   STABLE
+               OFFLINE OFFLINE      racdg2                   STABLE
+------------------------------------------------------------------------
+Cluster Resources
+------------------------------------------------------------------------
+ora.LISTENER_SCAN1.lsnr
+      1        ONLINE  ONLINE       racdg2                   STABLE
+ora.LISTENER_SCAN2.lsnr
+      1        ONLINE  ONLINE       racdg1                   STABLE
+ora.LISTENER_SCAN3.lsnr
+      1        ONLINE  ONLINE       racdg1                   STABLE
+ora.asm
+      1        ONLINE  ONLINE       racdg1                   Started,STABLE
+      2        ONLINE  ONLINE       racdg2                   Started,STABLE
+      3        OFFLINE OFFLINE                               STABLE
+ora.cvu
+      1        ONLINE  ONLINE       racdg1                   STABLE
+ora.standby.db
+      1        ONLINE  INTERMEDIATE racdg1                   Mounted (Closed),HOM
+                                                             E=/u01/app/oracle/pr
+                                                             oduct/19.3.0/dbhome_
+                                                             1,STABLE
+      2        ONLINE  INTERMEDIATE racdg2                   Mounted (Closed),HOM
+                                                             E=/u01/app/oracle/product/19.3.0/dbhome_
+                                                         
+                                                             1,STABLE
+ora.qosmserver
+      1        OFFLINE OFFLINE                               STABLE
+ora.racdg1.vip
+      1        ONLINE  ONLINE       racdg1                   STABLE
+ora.racdg2.vip
+      1        ONLINE  ONLINE       racdg2                   STABLE
+ora.scan1.vip
+      1        ONLINE  ONLINE       racdg2                   STABLE
+ora.scan2.vip
+      1        ONLINE  ONLINE       racdg1                   STABLE
+ora.scan3.vip
+      1        ONLINE  ONLINE       racdg1                   STABLE
+--------------------------------------------------------------------------------
+
+[grid@racdg1 trace]$
+
+Step 21: Enable MRP on Standby
+•	Start Managed Recovery Process (MRP) on the standby database for redo apply.
+
+SQL> select name,open_mode,database_role,cdb from v$database;
+
+NAME      OPEN_MODE            DATABASE_ROLE    CDB
+--------- -------------------- ---------------- ---
+PRIMARY      MOUNTED           PHYSICAL STANDBY NO
+
+SQL>
+
+SQL> alter database recover managed standby database disconnect from session;
+
+Database altered.
+
+SQL>
+6.4	 Verification
+Step 22: Verify Sync
+•	Confirm synchronization between primary and standby databases.
+On Primary
+
+SQL> select thread#,max(sequence#) from v$archived_log where archived='YES' group by thread#;
+
+
+
+
+   THREAD# MAX(SEQUENCE#)
+---------- --------------
+1             65  <----
+2             49  <----
+
+SQL>
+
+On Primary Instance 1:
+
+SQL> alter system switch logfile;
+
+System altered.
+
+SQL> /
+
+System altered.
+
+SQL> /
+
+System altered.
+
+SQL>
+
+On Primary Instance 2:
+
+
+SQL> alter system switch logfile;
+
+System altered.
+
+SQL> /
+
+System altered.
+
+SQL> /
+
+System altered.
+
+SQL> 
+
+
+SQL> select thread#,max(sequence#) from v$archived_log where archived='YES' group by thread#;
+
+
+   THREAD# MAX(SEQUENCE#)
+---------- --------------
+1             69  <----
+2             53  <----
+
+SQL>
+
+On Standby
+
+SQL> select thread#,max(sequence#) from v$archived_log where applied='YES' group by thread#;
+
+
+   THREAD# MAX(SEQUENCE#)
+---------- --------------
+1             68 <------
+2             53 <------
+
+SQL>
+
+
+SQL> SELECT ARCH.THREAD# "Thread", ARCH.SEQUENCE# "Last Sequence Received", APPL.SEQUENCE# "Last Sequence Applied", (ARCH.SEQUENCE# - APPL.SEQUENCE#) "Difference" FROM (SELECT THREAD# ,SEQUENCE# FROM V$ARCHIVED_LOG WHERE (THREAD#,FIRST_TIME ) IN (SELECT THREAD#,MAX(FIRST_TIME) FROM V$ARCHIVED_LOG GROUP BY THREAD#)) ARCH,(SELECT THREAD# ,SEQUENCE# FROM V$LOG_HISTORY WHERE (THREAD#,FIRST_TIME ) IN (SELECT THREAD#,MAX(FIRST_TIME) FROM V$LOG_HISTORY GROUP BY THREAD#)) APPL WHERE ARCH.THREAD# = APPL.THREAD# ORDER BY 1;
+
+
+    Thread Last Sequence Received Last Sequence Applied Difference
+---------- ---------------------- --------------------- ----------
+     1                     69                    69          0 <---
+     2                     53                    53          0 <---
+
+

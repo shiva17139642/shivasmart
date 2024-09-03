@@ -1,0 +1,240 @@
+Below are the Oracle 19C RAC pre-requistes:
+-------------------------------------------
+
+Hardware Requirements.
+Network Hardware Requirements.
+IP Address Requirements.
+OS and software Requirements.
+Preparing the server to install Grid Infrastructure.
+
+Hardware Requirements: 
+----------------------
+
+RAM -40GB
+Swap-40GB
+CPUs-8
+
+Mount points
+-------------
+
+/u01-100GB--->GRID_HOME
+/u02-100GB--->ORACLE_HOME
+/tmp-10GB
+
+Create the Oracle Inventory Directory
+-------------------------------------
+
+# mkdir -p /u01/app/oraInventory
+
+# chown -R grid:oinstall /u01/app/oraInventory
+
+# chmod -R 775 /u01/app/oraInventory
+
+Creating the Oracle Grid Infrastructure Home Directory
+-------------------------------------------------------
+
+# mkdir -p /u01/19.3.0/grid_home
+
+# chown -R grid:oinstall /u01/19.3.0.0/grid_home
+
+# chmod -R 775 /u01/19.3.0.0/grid_home
+
+Creating the Oracle Base Directory
+----------------------------------
+
+# mkdir -p /u01/app/oracle
+# mkdir /u01/app/oracle/cfgtoollogs –needed to ensure that dbca is able to run after the rdbms installation.
+# chown -R oracle:oinstall /u01/app/oracle
+# chmod -R 775 /u01/app/oracle
+
+Creating the Oracle RDBMS Home Directory
+-----------------------------------------
+# mkdir -p /u01/app/oracle/product/19.3.0.0/db_home
+
+# chown -R oracle:oinstall /u01/app/oracle/product/19.3.0.0/db_home
+
+# chmod -R 775 /u01/app/oracle/product/19.3.0.0/db_home
+
+
+
+Network Hardware Requirements:
+-------------------------------
+
+Each node must have at least two network interface cards (NIC), or network adapters. One adapter is for the public network interface and the other adapter is for the private network interface (interconnect).
+
+Public interface names must be the same for all nodes. If the public interface on one node uses the network adapter eth0, then you must configure eth0 as the public interface on all nodes.
+
+You should configure the same private interface names for all nodes as well. If eth1 is the private interface name for the first node, then eth1 should be the private interface name for your second node.
+
+The private network adapters must support the user datagram protocol (UDP) using high-speed network adapters and a network switch that supports TCP/IP (Gigabit Ethernet or better). Oracle recommends that you use a dedicated network switch.
+
+
+IP Address Requirements:
+-------------------------
+
+i)  A public IP address for each node
+
+ii) A virtual IP address for each node
+
+iii) Three single client access name (SCAN) addresses for the cluster
+
+iv) Private IP address for each node
+
+
+OS and software Requirements:
+-----------------------------
+
+
+Red Hat Enterprise Linux Server release 7.6 (Maipo)
+
+
+Synchronize the time between each RAC nodes:
+--------------------------------------------
+
+Oracle Clusterware 19c release requires time synchronization across all nodes within a cluster when Oracle RAC is deployed. Configure the NTP for both server (time should be match).
+
+
+User,group creation and permissions:
+------------------------------------
+
+groupadd -g 54321 oinstall 		
+groupadd -g 54322 dba 		
+groupadd -g 54323 oper 		
+groupadd -g 54324 asmdba 		
+groupadd -g 54325 asmoper 		
+groupadd -g 54326 asmadmin 		
+useradd -u 54321 -g oinstall -G dba,oper oracle		
+useradd -u 54321 -g oinstall		
+-G dba,oper,asmdba,asmoper, asmadmin grid		
+chown -R oracle:oinstall /u02/app/oracle/product/19.3.0.0/db_home		
+chown -R grid:oinstall /u01/app/grid/19.3.0.0/grid_home		
+chmod -R 775 /u02/oracle/prod		
+chmod -R 775 /u01/oracle/grid	
+
+
+OS RPMS for RHEL 7.6	
+---------------------
+
+oracle-database-server-19cR2-preinstall 
+binutils 
+compat-libstdc++-33 
+compat-libstdc++-33.i686 
+gcc 
+gcc-c++ 
+glibc 
+glibc.i686
+glibc-devel
+glibc-devel.i686 
+ksh 
+libgcc 
+libgcc.i686 
+libstdc++ 
+libstdc++.i686 
+libstdc++-devel 
+libstdc++-devel.i686 
+libaio 
+libaio.i686 
+libaio-devel 
+libaio-devel.i686 
+libXext 
+libXext.i686 
+libXtst 
+libXtst.i686 
+libX11 
+libX11.i686 
+libXau 
+libXau.i686 
+libxcb 
+libxcb.i686 
+libXi 
+libXi.i686 
+make 
+sysstat 
+unixODBC 
+unixODBC-devel 
+zlib-devel 
+zlib-devel.i686 
+oracleasmlib-2.0.12-1.el7.x86_64.rpm
+ oracleasmlib-2.0.4-1.el6.x86_64.rpm
+ oracleasm-support-2.1.11-2.el7.x86_64.rpm
+ kmod-oracleasm-2.0.8-21.0.1.el7.x86_64.rpm
+ oracle-database-preinstall-19c-1.0-1.el7.x86_64.rpm
+ libXaw-1.0.13-4.el7.x86_64.rpm
+ xorg-x11-apps-7.7-7.el7.x86_64.rpm
+ compat-libcap1-1.10-7.el7.x86_64.rpm
+ oracle-database-ee-19c-1.0-1.x86_64.rpm
+ cvuqdisk-1.0.10-1.rpm
+rpm -qa|grep libdtrace-ctf
+rpm -qa|grep libdtrace-ctf-devel
+rpm -qa|grep dtrace-utils
+rpm -qa|grep dtrace-utils-devel
+
+Kernel Parameter:		
+----------------
+
+vi /etc/sysctl.conf		
+
+fs.file-max = 6815744		
+kernel.sem = 250 32000 100 128		
+kernel.shmmni = 4096		
+kernel.shmall = 1073741824		
+kernel.shmmax = 4398046511104		
+net.core.rmem_default = 262144		
+net.core.rmem_max = 4194304		
+net.core.wmem_default = 262144		
+net.core.wmem_max = 1048576		
+fs.aio-max-nr = 1048576		
+net.ipv4.ip_local_port_range = 9000 65500		
+kernel.panic_on_oops = 1	
+
+Security Parameter		
+-------------------
+
+vi /etc/security/limits.conf 		
+
+oracle   soft   nofile   131072		
+oracle   hard   nofile   131072		
+oracle   soft   nproc    131072		
+oracle   hard   nproc    131072		
+oracle   soft   core     unlimited		
+oracle   hard   core     unlimited		
+oracle   soft   stack    10240		
+oracle   hard   stack    32768		
+oracle   hard   memlock  134217728		
+oracle   soft   memlock  134217728		
+grid   soft   nofile   131072		
+grid   hard   nofile   131072		
+grid   soft   nproc    131072		
+grid   hard   nproc    131072		
+grid   soft   core     unlimited		
+grid   hard   core     unlimited		
+grid   soft   stack    10240		
+grid   hard   stack    32768		
+grid   hard   memlock  134217728		
+grid   soft   memlock  134217728
+
+
+Rp_filter
+---------
+
+sysctl -a | grep '\.rp_filter'
+
+net.ipv4.conf.all.rp_filter = 2
+net.ipv4.conf.default.rp_filter = 2
+net.ipv4.conf.ens192.rp_filter = 1
+net.ipv4.conf.ens224.rp_filter = 2
+net.ipv4.conf.lo.rp_filter = 0
+
+		
+	
+		
+		
+
+	
+	
+	
+
+
+
+
+

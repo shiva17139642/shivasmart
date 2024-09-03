@@ -1,0 +1,15 @@
+SET ECHO ON;
+SET PAGES 150;
+SET MARKUP HTML ON;
+SPOOL /home/oracle/cluster_node_1.html;
+SELECT instance_name, host_name, version, startup_time FROM gv$instance;
+SELECT group_number, name, type, state, total_mb, free_mb FROM v$asm_diskgroup;
+SELECT group_number, name, type, state, total_mb/1024 total_gb,free_mb/1024 free_gb FROM v$asm_diskgroup;
+SELECT group_number, disk_number, name, path, total_mb, free_mb, header_status FROM v$asm_disk;
+SELECT name, value FROM v$parameter WHERE name LIKE 'asm%';
+SELECT group_number, disk_number, name, path, total_mb, free_mb, header_status FROM v$asm_disk;
+SELECT name, value FROM v$parameter WHERE name LIKE 'asm%';
+SELECT * FROM gv$cluster_interconnects;
+SPOOL OFF;
+SET MARKUP HTML off;
+

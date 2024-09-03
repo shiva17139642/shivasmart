@@ -1,0 +1,323 @@
+ADDING DISK TO ASM DISK GROUP
+-----------------------------------------------------------------------------------
+Rebalancing disks in Oracle Automatic Storage Management (ASM) involves redistributing data across all available disks to ensure optimal use of resources and performance. Here’s how you can perform disk rebalancing in Oracle ASM:
+
+Follow the below steps to add a disk to ASM disk group in Oracle 19c :-
+
+1. Understanding ASM Disk Groups.
+2. Create the new ASM Disk Group.
+3. Add disk to ASM disk group.
+4. Monitoring the Rebalance Process.
+5. Check the newly added disk in ASM Disk group.
+ 
+### 1. Understanding ASM Disk Groups:
+   - In Oracle ASM, data is stored in disk groups, which are collections of disks that are managed together.
+   - When you add or remove disks from a disk group, ASM automatically initiates a rebalance operation to evenly distribute the data.
+-	Execute the below command to check all the ASM disk availability. 
+
+oracleasm listdisks
+
+ 
+Get the Lun name from storage team:-
+Lun Name – /dev/sdd1
+	
+	Lsblk
+ 
+
+### 2. Create the new ASM Disk: 
+	
+sudo oracleasm createdisk [disk_group_name] [disk_path] 
+
+ 
+Run the below command as grid user on each of the new disks discovered from the “listdisks” command.
+
+oracleasm querydisk <diskname_output_of_oracleasm listdisks>
+
+ 
+
+sudo oracleasm listdisks
+
+ 
+
+ll /dev/oracleasm/disks/
+
+ 
+In a RAC environment, after adding the disk on  First node, 
+you  can scan the disks on the second node to verify the status of newly added disks:-
+--------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------
+
+Sudo oracleasm scandisks
+	
+Check the newly added disk in ASM Diskgroup :-
+
+set lines 999;
+col diskgroup for a15;
+col diskname for a15;
+col path for a35;
+select a.name DiskGroup,b.name DiskName, b.total_mb, (b.total_mb-b.free_mb) Used_MB, b.free_mb,b.path,b.header_status
+from v$asm_disk b, v$asm_diskgroup a
+where a.group_number (+) =b.group_number
+order by b.group_number,b.name;
+
+
+### 3.  Add disk to ASM disk group:
+   - When you add a disk to a disk group, ASM starts the rebalancing process automatically. Here’s how to add a disk:
+     ```
+su – grid
+export ORACLE_SID=+ASM1
+sqlplus / as sysasm
+
+ALTER DISKGROUP [disk_group_name] ADD DISK [disk_path] rebalance power 100;
+    ```
+    Example:
+    ```sqlplus / as sysasm
+ALTER DISKGROUP data02 ADD DISK '/dev/oracleasm/disks/DATA04' REBALANCE POWER 100;
+     ```
+
+
+### 4. Monitoring the Rebalance Process:
+- You can monitor the progress of the rebalance operation using the `V$ASM_OPERATION` views:
+
+	SELECT GROUP_NUMBER, OPERATION, STATE, POWER, ACTUAL, SOFAR, EST_WORK, EST_RATE, EST_MINUTES FROM V$ASM_OPERATION;
+				(OR)
+	SELECT  FROM V$ASM_OPERATION;
+
+-If no rows returned, then the rebalance is compeleted.
+
+
+
+### 5.  Check the newly added disk in ASM Diskgroup:
+- When you add a disk to a disk group, check the  ASM status:
+
+set lines 999 pages 200;
+col diskgroup for a15;
+col diskname for a15;
+col path for a35;
+select a.name DiskGroup,b.name DiskName, b.total_mb, (b.total_mb-b.free_mb) Used_MB, b.free_mb,b.path,b.header_status
+from v$asm_disk b, v$asm_diskgroup a
+where a.group_number (+) =b.group_number
+order by b.group_number,b.name;
+
+ 
+
+SET linesize 999;
+SET pagesize 999;
+COL asmdisk_name FOR a15;
+COL mount_status FOR a15;
+COL header_status FOR a15;
+COL mode_status FOR a15;
+COL state FOR a15;
+COL total_mb FOR a15;
+COL free_mb FOR a15;
+COL path FOR a35;
+COL label FOR a15;;
+COL diskgroup_name FOR a15;
+SELECT SUBSTR (d.name, 1, 16)     AS asmdisk_name,
+d.mount_status,
+d.header_status,
+d.mode_status,
+d.state,
+TO_CHAR (d.total_mb)       total_mb,
+TO_CHAR (d.free_mb)        free_mb,
+d.PATH,
+d.label,
+dg.name                    AS diskgroup_name
+FROM V$ASM_DISKGROUP dg RIGHT OUTER JOIN V$ASM_DISK d USING (group_number);
+
+
+############################################################################################################################################
+
+
+### 6. Removing Disks:
+   - Similarly, when you remove a disk from a disk group, ASM rebalances the data across the remaining disks:
+     ```sql
+     ALTER DISKGROUP [disk_group_name] DROP DISK [disk_name];
+     ```
+     Example:
+     ```sql
+     ALTER DISKGROUP data DROP DISK data_0001;
+     ```
+### 7. Adjusting Rebalance Power:
+   - The rebalance power determines the speed of the rebalance operation. A higher value speeds up the rebalance but might affect database performance. You can adjust it using:
+     ```sql
+	ALTER DISKGROUP [disk_group_name] REBALANCE POWER [value];
+     ```
+     Example:
+     ```sql
+	ALTER DISKGROUP data REBALANCE POWER 8;
+     ```
+ 
+### 8. Checking Disk Group Usage:
+   - To view the current usage of a disk group, you can query the `V$ASM_DISKGROUP` view:
+     ```sql
+	SELECT NAME, TOTAL_MB, FREE_MB, REQUIRED_MIRROR_FREE_MB, USABLE_FILE_MB FROM V$ASM_DISKGROUP;
+     ```
+  
+
+### 9. Stopping a Rebalance Operation:
+   - If necessary, you can stop a rebalance operation with the following command:
+     ```sql
+	ALTER DISKGROUP [disk_group_name] REBALANCE CANCEL;
+     ```
+### 10. ASM Disk Rebalance in a Multinode Environment:
+   - In a RAC environment, the rebalance operation is coordinated across all nodes to maintain consistent data distribution.
+ 
+### Best Practices for Disk Rebalancing:
+1. Plan Rebalancing During Low Activity Periods: To minimize the impact on performance.
+2. Monitor Rebalance Progress: Keep an eye on the `V$ASM_OPERATION` view.
+3. Adjust Power Based on System Performance: If the rebalance operation impacts performance, adjust the power level accordingly.
+
+### Examples: 
+#### Adding a Disk and Monitoring Rebalance
+```sql
+	ALTER DISKGROUP data ADD DISK '/dev/sdd1' NAME data_0004;
+
+	SELECT GROUP_NUMBER, OPERATION, SOFAR, EST_MINUTES FROM V$ASM_OPERATION;
+#### Adjusting Rebalance Power
+```sql
+	ALTER DISKGROUP data REBALANCE POWER 5;
+#### Stopping a Rebalance Operation
+```sql
+	ALTER DISKGROUP data REBALANCE CANCEL;
+```
+
+
+############################################################################################################################################
+############################################################################################################################################
+1) Create Disk Group:-
+
+Create Disk groups using the CREATE DISKGROUP statement and specify the level of redundancy.
+
+Disk group redundancy types:-
+
+NORMAL REDUNDANCY – Two-way mirroring, requiring two failure groups.
+HIGH REDUNDANCY –  Three-way mirroring, requiring three failure groups.
+EXTERNAL REDUNDANCY – No mirroring for disks that are already protected using hardware RAID or mirroring.
+
+Example 1 : External Redundancy
+
+SQL> create diskgroup DATA external redundancy disk ‘/dev/oracleasm/disks/DISK1′ name DATA_1;
+ 
+
+Example 2 : Normal Redundancy
+
+SQL> CREATE DISKGROUP data NORMAL REDUNDANCY
+ FAILGROUP failure_group_1 DISK ‘/dev/oracleasm/disks/DISK2′ NAME DATA_2,’/dev/oracleasm/disks/DISK3′ NAME DATA_3,
+ FAILGROUP failure_group_2 DISK ‘/dev/oracleasm/disks/DISK4′ NAME DATA_4,’/dev/oracleasm/disks/DISK5′ NAME DATA_5;
+ 
+
+2) Drop Disk Group:-
+
+Using DROP DISKGROUP statement.
+
+SQL> DROP DISKGROUP data INCLUDING CONTENTS;
+ 
+
+3) Alter Disk Group:-
+
+Add or remove disks from disk groups Using ALTER DISKGROUP statement. You can also use wildcard “” to reference disks.
+
+   3.1) Add a disk.
+
+ SQL> ALTER DISKGROUP data ADD DISK ”/dev/oracleasm/disks/DISK6′ ;
+ 3.2) Drop/remove a disk.
+
+ SQL> ALTER DISKGROUP data DROP DISK DATA_5;
+ 
+
+  3.3) Undrop disk
+
+The UNDROP command used to undo only pending drop of disks. After you drop the disks you cannot revert.
+
+SQL> ALTER DISKGROUP data UNDROP DISKS;
+ 
+
+  3.4) Diskgroup Rebalance:
+Disk groups can be rebalanced manually Using REBALANCE clause and you can modify the POWER clause default value.
+
+SQL> ALTER DISKGROUP DATA REBALANCE POWER 8;
+ 
+
+  3.5) MOUNT and DISMOUNT DiskGroups:
+Normally Disk groups are mounted at ASM instance startup and dismounted at shutdown.
+
+Using MOUNT and DISMOUNT options you can make one or more Disk Groups available or unavailable.
+
+ SQL> ALTER DISKGROUP data MOUNT;
+ SQL> ALTER DISKGROUP data DISMOUNT;
+ SQL> ALTER DISKGROUP ALL MOUNT;
+ SQL> ALTER DISKGROUP ALL DISMOUNT;
+ 
+
+ 3.6) DiskGroup Check:
+
+Use CHECK ALL to verify the internal consistency of disk group metadata and repair in case of any error.
+
+SQL> ALTER DISKGROUP data CHECK ALL;
+ 
+
+ 3.7) DiskGroup resize:
+Resize the one or all disks in the Diskgroup.
+
+Resize all disks in a failure group.
+
+SQL> ALTER DISKGROUP data RESIZE DISKS IN FAILGROUP failure_group_1 SIZE 1024G;
+Resize a specific disk.
+
+SQL> ALTER DISKGROUP data RESIZE DISK DATA_0006 SIZE 100G;
+Resize all disks in a disk group.
+
+SQL> ALTER DISKGROUP data RESIZE ALL SIZE 100G;
+ 
+
+4) To find ASM Diskgroup and Disks status:-
+
+set lines 132
+col name format a14
+col PATH format a33
+select GROUP_NUMBER,NAME,STATE,TYPE,TOTAL_MB,FREE_MB,VOTING_FILES from v$asm_diskgroup;
+
+GROUP_NUMBER NAME      STATE   TYPE  TOTAL_MB FREE_MB V
+------------ ------------------------------ ----------- ------ ---------- ---------- -
+1           OCR_VOTE MOUNTED EXTERN 152999    152603   Y
+2           DB_DATA  MOUNTED EXTERN 812000   810198  N
+ 
+
+select GROUP_NUMBER,DISK_NUMBER,MOUNT_STATUS,HEADER_STATUS,MODE_STATUS,STATE,VOTING_FILE,name,path from v$asm_disk;
+
+ GROUP_NUMBER  DISK_NUMBER MOUNT_S HEADER_STATU MODE_ST STATE V     NAME              PATH
+------------ ----------- ------- ------------ ------- -------- - -------------- ---------------------------------
+1             0         CACHED MEMBER         ONLINE NORMAL Y OCR_VOTE_0 /dev/oracleasm/disks/OCR_VOTE01
+2             3         CACHED MEMBER         ONLINE NORMAL N DB_DATA_3 /dev/oracleasm/disks/DB_DATA04
+2             2         CACHED MEMBER         ONLINE NORMAL N DB_DATA_2 /dev/oracleasm/disks/DB_DATA03
+2             1         CACHED MEMBER         ONLINE NORMAL N DB_DATA_1 /dev/oracleasm/disks/DB_DATA02
+2             0         CACHED MEMBER         ONLINE NORMAL N DB_DATA_0 /dev/oracleasm/disks/DB_DATA01
+6 rows selected.
+
+
+
+SET linesize 999;
+SET pagesize 999;
+COL asmdisk_name FOR a15
+COL mount_status FOR a15
+COL header_status FOR a15
+COL mode_status FOR a15
+COL state FOR a15
+COL total_mb FOR a15
+COL free_mb FOR a15
+COL path FOR a35
+COL label FOR a15
+COL diskgroup_name FOR a15
+
+SELECT SUBSTR (d.name, 1, 16)     AS asmdisk_name,
+       d.mount_status,
+       d.header_status,
+       d.mode_status,
+       d.state,
+       TO_CHAR (d.total_mb)       total_mb,
+       TO_CHAR (d.free_mb)        free_mb,
+       d.PATH,
+       d.label,
+       dg.name                    AS diskgroup_name
+  FROM V$ASM_DISKGROUP dg RIGHT OUTER JOIN V$ASM_DISK d USING (group_number);

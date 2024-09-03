@@ -1,0 +1,233 @@
+Installing a standalone Oracle database
+Installing a standalone Oracle database on a Linux system involves several steps. Here is a detailed guide to help you through the process:
+### Prerequisites
+1.	**System Requirements**:-
+	A supported Linux distribution (e.g., Oracle Linux, Red Hat Enterprise Linux, CentOS, Ubuntu).
+	Sufficient memory:- free -h
+  
+
+	disk space :- df -h
+ 
+
+2. **Required Packages**:-
+	Ensure that essential packages like `binutils`, `gcc`, `glibc`, `libaio`, `make`, `sysstat`, and others are installed. These packages can usually be installed using your distributions package manager (e.g., `yum`, `dnf`, or `apt`).
+
+3.Download Oracle Database Software :-
+Visit the [Oracle Database download page](https://www.oracle.com/database/technologies/oracle-database-software-downloads.html).
+	Select the appropriate version and download the installation files.
+
+4. Create Required Groups and Users :-
+groupadd -g 54321 oinstall 		
+groupadd -g 54322 dba 		
+groupadd -g 54323 oper 		
+groupadd -g 54324 asmdba 		
+groupadd -g 54325 asmoper 		
+groupadd -g 54326 asmadmin 		
+useradd -u 54321 -g oinstall -G dba, oper, oracle		
+useradd -u 54321 -g oinstall -G dba,oper, asmdba, asmoper, asmadmin,grid
+
+----cat /etc/group (for checking of groups purpose)
+ 
+useradd -u 1100 -g oinstall  -d /home/oracle -s /bin/bash -c "oracle DB Owner" oracle
+
+---cat /etc/passwd (for checking of groups purpose)
+
+ 
+5. Creating the Oracle Base Directory :-
+mkdir -p /u01/app/oracle
+mkdir /u01/app/oracle/cfgtoollogs –needed to ensure that dbca is able to run after the rdbms installation.
+chown -R oracle:oinstall /u01/app/oracle
+chmod -R 775 /u01/app/oracle
+
+6. Creating the Oracle RDBMS Home Directory:-
+mkdir -p /u01/app/oracle/product/21.3.0/dbhome_1
+chown -R oracle:oinstall /u01/app/oracle/product/21.3.0/dbhome_1
+chmod -R 775 /u01/app/oracle/product/21.3.0/dbhome_1
+ls -ld /u01/app/oracle/product/21.3.0/dbhome_1
+ 
+
+7. Kernel Parameters:-	
+
+	vi /etc/sysctl.conf	
+	
+fs.file-max = 6815744		
+kernel.sem = 250 32000 100 128		
+kernel.shmmni = 4096		
+kernel.shmall = 1073741824		
+kernel.shmmax = 4398046511104		
+net.core.rmem_default = 262144		
+net.core.rmem_max = 4194304		
+net.core.wmem_default = 262144		
+net.core.wmem_max = 1048576		
+fs.aio-max-nr = 1048576		
+net.ipv4.ip_local_port_range = 9000 65500		
+kernel.panic_on_oops = 1	
+ 
+8. Security Parameter	
+	
+	vi /etc/security/limits.conf  
+		
+oracle   soft   nofile   131072		
+oracle   hard   nofile   131072		
+oracle   soft   nproc    131072		
+oracle   hard   nproc    131072		
+oracle   soft   core     unlimited		
+oracle   hard   core     unlimited		
+oracle   soft   stack    10240		
+oracle   hard   stack    32768		
+oracle   hard   memlock  134217728		
+oracle   soft   memlock  134217728	
+
+
+9. Modify Required Groups and User :-
+usermod -a -G dba oracle
+
+----cat /etc/group (for checking of groups purpose)
+
+10. Set the password for oracle :-
+
+passwd oracle
+
+11. Login as oracle and Install winscp on host machine
+	check ip on guest machine
+	and connect with that ip through winscp.
+	and copy your software to guest machine in /home/oracle/software.
+
+12. Unzip the software files:-
+go to software location 
+chmod 777 v982063_01.zip
+unzip LINUX.X64_213000_db_home.zip   -d  /u01/app/oracle/product/21.3.0/dbhome_1/
+ 
+13. Go to Oracle home path :-
+cd /u01/app/oracle/product/21.3.0/dbhome_1/
+
+ls -ld /u01/app/oracle/product/21.3.0/dbhome_1
+ 
+
+
+14.Now run the  run Installer :-
+
+./runInstaller
+
+o	Click Set Up software only
+
+
+o	Click Single instance
+
+o	Click Enterprise Edition
+
+
+o	Check base and home
+
+
+o	Check user groups
+
+ 
+o	Leave as it is
+
+
+o	Click ignore and install
+
+  
+o	oracle 19c installation in progress 
+o	Execute script as a root user in another window.
+
+ 
+
+The following environment variables are set as:
+ORACLE_OWNER= oracle
+ORACLE_HOME= /u01/app/oracle/product/19c/dbhome_1
+Enter the full pathname of the local bin directory: [/usr/local/bin]:
+The contents of “dbhome” have not changed. No need to overwrite.
+The contents of “oraenv” have not changed. No need to overwrite.
+The contents of “oraenv” have not changed. No need to overwrite.
+Entries will be added to the /etc/oratab file as needed by
+Database Configuration Assistant when a database is created
+Finished running generic part of root script.
+Now product-specific root actions will be performed.
+Oracle Trace File Analyzer (TFA – Standalone Mode) is available at :
+/u01/app/oracle/product/19c/dbhome_1/bin/tfactl
+Note :
+1. tfactl will use TFA Service if that service is running and user has been granted access
+2. tfactl will configure TFA Standalone Mode only if user has no access to TFA Service or TFA is not installed.
+
+o	Ready for database creation
+
+Oracle 19c Database Creation for Standalone Server
+
+o	Export oracle home and start dbca tool
+	./dbca
+ 
+
+o	Click advanced configuration
+
+
+o	Select database type
+
+ 
+o	Enter database name
+
+ 
+
+o	Select database storage 
+
+ 
+o	Enable and Archivelog
+ 
+o	Select  listener
+
+ 
+
+o	Leave as it is
+
+
+
+o	Enter password
+
+
+o	Leave as it is
+
+ 
+
+o	Click Finish and start database creation
+
+
+o	Oracle 19c database creation in progress 
+
+o	Oracle 19c database creation in progress 
+o	Database creation completed successfully
+
+
+15. Change the bash profile:-		
+	vi .bash_profile		
+	export TMP=/tmp
+	export TMPDIR=$TMP
+	export ORACLE_HOSTNAME=cdc1dbstore.cdchial.in
+	export ORACLE_UNQNAME=AMSTEST
+	export ORACLE_BASE=/u01/app/oracle
+	export DB_HOME=$ORACLE_BASE/product/19.3.0/dbhome_1
+	export ORACLE_HOME=$DB_HOME
+	export ORACLE_SID=AMSTEST
+	export ORACLE_TERM=xterm
+	export PATH=$ORACLE_HOME/bin:$PATH:.
+	export LD_LIBRARY_PATH=$ORACLE_HOME/lib:/lib:/usr/lib
+	export CLASSPATH=$ORACLE_HOME/jlib:$ORACLE_HOME/rdbms/jlib
+ 
+Check database status:-
+	set environment variables:
+
+	cat /etc/oratab
+ 
+	[oracle@cdc1dbrestore dbhome_1]$   . oraenv
+ORACLE_SID = [AMSTEST] ? AMSTEST
+-bash: [: /u01/app/oracle: unary operator expected
+The Oracle base remains unchanged with value /u01/app/oracle
+Resetting ORACLE_BASE to its previous value or ORACLE_HOME
+The Oracle base remains unchanged with value /u01/app/oracle
+ 
+
+
+	Sqlplus / as sysdba
+
+	select status,name,DATABASE_ROLE,OPEN_MODE,switchover_status from v$instance,v$database;
+ 

@@ -1,0 +1,318 @@
+1.Check the current scn of both databases:
+Primary :-
+
+col CURRENT_SCN for 999999999999999;
+SELECT CURRENT_SCN FROM V$DATABASE; 
+
+CURRENT_SCN
+-----------
+   31642982
+   
+Standby:-
+col CURRENT_SCN for 999999999999999;
+SELECT CURRENT_SCN FROM V$DATABASE; 
+
+CURRENT_SCN
+-----------
+    8891768
+	
+From the above SCN it is very clear that the standby is lagging by a large number
+
+--------------------------------------------------------------------------------------------------
+2. Checking the datafiles which require the recovery (Refer Oracle note: Doc ID 1987763.1 for queries)
+
+Primary:
+
+select HXFIL File_num,substr(HXFNM,1,40),fhscn from x$kcvfh;
+
+FILE_NUM SUBSTR(HXFNM,1,40)               FHSCN
+------------------------                  ----------
+
+1 /ora00_data1/ORCL/dbfile/SYSTEM_01.DB     31629825
+2 /ora00_data1/ORCL/dbfile/SYSAUX_01.DB     31629825
+3 /ora00_data1/ORCL/dbfile/UNDOTBS_01.D     31629825
+4 /ora00_data1/ORCL/dbfile/auditing.dbf     31629825
+5 /ora00_data1/ORCL/dbfile/ORCLDAT_0.DBF    31629825
+6 /ora00_data1/ORCL/dbfile/ORCLDAT.DBF      31629825
+7 /ora00_data1/ORCL/dbfile/USERS_01.DBF     31629825
+
+Standby:-
+
+select HXFIL File_num,substr(HXFNM,1,40),fhscn from x$kcvfh;
+FILE_NUM SUBSTR(HXFNM,1,40)                 FHSCN
+------------------------------    -----------------
+1 /ora00_data1/ORCL/dbfile/SYSTEM_01.DBF   8891769
+2 /ora00_data1/ORCL/dbfile/SYSAUX_01.DBF   8891769
+3 /ora00_data1/ORCL/dbfile/UNDOTBS_01.DBF  8891769
+4 /ora00_data1/ORCL/dbfile/auditing.dbf    8891769
+5 /ora00_data1/ORCL/dbfile/ORCLDAT_0.DBF   8891769
+6 /ora00_data1/ORCL/dbfile/ORCLDAT.DBF     8891769
+7 /ora00_data1/ORCL/dbfile/USERS_01.DBF    8891769
+If we see the header of the datafiles it seems all of them require recovery.Now, to start the recovery, please follow the next steps.
+
+--------------------------------------------------------------------------------------------------------------------------------
+
+DO THIS IN PRIMARY DATABASE:-
+-----------------------------------
+alter system set log_archive_dest_state_2=defer scope=both sid='*';
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+3. Bring down the standby database, startup in the mount and then stop the recovery process.
+
+
+ALTER DATABASE RECOVER MANAGED STANDBY DATABASE CANCEL;
+
+
+DO THIS IN STANDBY DATABASE:-
+-------------------------------------------
+Shutdown immediate;
+Startup mount;
+
+
+
+shutdown the second node of standby in RAC database.
+---------------------------------------------------------------------------------------------------------------------
+
+4.Now, connect to the target database (Standby) then connect to the primary database using TNS service name then start the recovery. Before moving forwardcheck that if you are able to do tnsping and can connect to the remote database using TNS, if not , Please correct TNS settings first.
+
+###Also shutdown the standby database of  second node :
+
+rman target /
+
+RMAN> 
+recover database from service "IMBDB" noredo using compressed backupset;
+
+Starting recover at 09-APR-20
+using target database control file instead of recovery catalog
+allocated channel: ORA_SBT_TAPE_1
+channel ORA_SBT_TAPE_1: using compressed network backup set from service ORCLPROD.localdomain.com
+destination for restore of datafile 00001: /ora00_data1/ORCL/dbfile/SYSTEM_01.DBF
+channel ORA_SBT_TAPE_2: starting incremental datafile backup set restore
+channel ORA_SBT_TAPE_2: using compressed network backup set from service ORCLPROD.localdomain.com
+Finished recover at 09-APR-20
+RMAN>
+So far all good , everything looks alright until this step, if you check the RMAN log  (bold texts) you can see that rman is doing an incremental backup of each datafile then restoring them. 
+
+
+------------------------------------------------------------------------------------------------------------
+5. Now, check the datafile headers for the current SCNs
+
+Primary:-
+
+select HXFIL File_num,substr(HXFNM,1,40),fhscn from x$kcvfh;
+
+FILE_NUM SUBSTR(HXFNM,1,40)                  FHSCN
+----------------------------------           ----------
+1 /ora00_data1/ORCL/dbfile/SYSTEM_01.DB      31652383
+2 /ora00_data1/ORCL/dbfile/SYSAUX_01.DB      31652383
+3 /ora00_data1/ORCL/dbfile/UNDOTBS_01.DBF    31652383
+4 /ora00_data1/ORCL/dbfile/auditing.dbf      31652383
+5 /ora00_data1/ORCL/dbfile/ORCLDAT_0.DBF     31652383
+6 /ora00_data1/ORCL/dbfile/ORCLDAT.DBF       31652383
+7 /ora00_data1/ORCL/dbfile/USERS_01.DBF      31652383
+Standby:
+
+select HXFIL File_num,substr(HXFNM,1,40),fhscn from x$kcvfh;
+
+FILE_NUM SUBSTR(HXFNM,1,40)                   FHSCN
+------------------------------     --------------------
+1 /ora00_data1/ORCL/dbfile/SYSTEM_01.DB     31645180
+2 /ora00_data1/ORCL/dbfile/SYSAUX_01.DB     31645181
+3 /ora00_data1/ORCL/dbfile/UNDOTBS_01.DBF   31645182
+4 /ora00_data1/ORCL/dbfile/auditing.dbf     31645392
+5 /ora00_data1/ORCL/dbfile/ORCLDAT_0.dbf    31645495
+6 /ora00_data1/ORCL/dbfile/ORCLDAT.DBF      31645684
+7 /ora00_data1/ORCL/dbfile/USERS_01.DBF     31648600
+7 rows selected.
+If you notice the above outputs you could see that the SCN numbers are almost same for all the database files unlike earlier.
+However, what about the controle file ? It has the same old information of the datafiles that could be a problem when you start the database specially when the filesystem structure is different. It will not be allowed.
+So,restore the control file using RMAN from the primary database as shown in step 6.
+
+
+------------------------------------------------------------------------------------------------------
+6. Restoring control file.
+
+Shutdown immediate;
+
+Startup nomount;
+
+exit
+
+rman target /
+RMAN>
+restore STANDBY CONTROLFILE from service "IMBDB";
+
+Starting restore at 09-APR-20
+using target database control file instead of recovery catalog
+allocated channel: ORA_DISK_1
+channel ORA_DISK_1: SID=582 device type=DISK
+channel ORA_DISK_1: starting datafile backup set restore
+channel ORA_DISK_1: using network backup set from service ORCLPROD.localdomain.com
+channel ORA_DISK_1: restoring control file
+channel ORA_DISK_1: restore complete, elapsed time: 00:00:05
+output file name=/ora00_data1/ORCL/control/control_01.ctl
+output file name=/ora00_data2/ORCL/control/control_02.ctl
+output file name=/ora00_data3/ORCL/control/control_03.ctl
+Finished restore at 09-APR-20
+RMAN>
+
+----------------------------------------------------------------------------------------
+7. Now mount the database using a new control file
+
+SQL>
+alter database mount;
+
+Database altered.
+
+---------------------------------------------------------------------------------------------------
+8. Check the data files if any one of these is missing.
+
+RMAN> 
+report schema;
+
+released channel: ORA_DISK_1
+Starting implicit crosscheck backup at 09-APR-20
+allocated channel: ORA_DISK_1
+channel ORA_DISK_1: SID=393 device type=DISK
+Crosschecked 5 objects
+Finished implicit crosscheck backup at 09-APR-20
+Starting implicit crosscheck copy at 09-APR-20
+using channel ORA_DISK_1
+Finished implicit crosscheck copy at 09-APR-20
+searching for all files in the recovery area
+cataloging files…
+no files cataloged
+RMAN-06139: WARNING: control file is not current for REPORT SCHEMA
+Report of database schema for database with db_unique_name ORCLP
+List of Permanent Datafiles
+===============================
+File Size(MB) Tablespace RB segs Datafile Name
+-------------------------------------------------
+1 1124 SYSTEM *** /ora00_data1/ORCL/dbfile/SYSTEM_01.DBF
+2 2824 SYSAUX *** /ora00_data1/ORCL/dbfile/SYSAUX_01.DBF
+3 1024 UNDOTBS1 *** /ora00_data1/ORCL/dbfile/UNDOTBS_01.DBF
+4 500 AUDITING *** /ora00_data1/ORCL/dbfile/auditing.dbf
+5 13100 ORCLDAT *** /ora00_data1/ORCL/dbfile/ORCLDAT_02.DBF
+6 32767 ORCLDAT *** /ora00_data1/ORCL/dbfile/ORCLDAT.DBF
+7 250 USERS *** /ora00_data1/ORCL/dbfile/USERS_01.DBF
+List of Temporary Files
+============================
+File Size(MB) Tablespace Maxsize(MB) Tempfile Name
+----------------------------------------------------
+1 512 TEMP 32767 /ora00_data1/ORCL/dbfile/TEMP_01.DBF
+
+--------------------------------------------------------------------------------------------
+9. start the recovery process.
+
+ALTER DATABASE RECOVER MANAGED STANDBY DATABASE DISCONNECT FROM SESSION;
+
+
+select status,process,thread#,SEQUENCE#,block#,blocks from v$managed_standby;
+
+
+Your suggestions are most welcome. 
+
+
+-------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------
+10.If location/name of data file is different in Primary than standby. If same location then skip this steps.
+If path is different then you have to catalog new location and run SWITCH command for update location.
+Note: For different path, Use the CATALOG command and the SWITCH command to update all the data file names.
+
+-- On Standby
+-- catalog start with '';
+RMAN> Catalog start with '/u01/app/oracle/oradata/clone/';
+-- Fixes the location
+SWITCH DATABASE TO COPY;
+
+11. If any data files is added after upgrade in Primary then you have to replicate that.
+If not then skip this step.
+
+-- Check the last SCN changes happen at DB on STep 5
+SELECT file# FROM V$DATAFILE WHERE creation_change# >= 1984232;
+
+-- If you find any file id then you need to restore it.
+RUN
+{
+SET NEWNAME FOR DATABASE TO '//clone';
+RESTORE DATAFILE 21 FROM SERVICE prim;
+}
+
+
+12. If you need to rename the redo log files then use following commands:
+ALTER DATABASE CLEAR command to clear the log files in all redo log groups of the standby database.
+ALTER DATABASE RENAME FILE command to rename the redo log files.
+
+
+Recreate standby redologs: [ ON STANDBY ]
+As our standby database is a 2 node RAC, we are 2 thread, ( one for each node). In case of standby database, no need to worry about thread concept.
+
+--- First cancel the recovery:
+
+SQL> 
+recover managed standby database cancel;
+Media recovery complete.
+
+
+SQL>  select inst_id,GROUP#,TYPE,MEMBER from gv$logfile where TYPE='STANDBY' WHERE INST_ID=1;
+
+   INST_ID     GROUP# TYPE    MEMBER
+---------- ---------- ------- --------------------------------------------------
+         1         15 STANDBY +DATA/CLSPROD/ONLINELOG/group_15.326.1081670395
+         1         15 STANDBY +FRA/CLSPROD/ONLINELOG/group_15.355.1081670397
+         1         16 STANDBY +DATA/CLSPROD/ONLINELOG/group_16.325.1081670425
+         1         16 STANDBY +FRA/CLSPROD/ONLINELOG/group_16.346.1081670429
+         1         17 STANDBY +DATA/CLSPROD/ONLINELOG/group_17.324.1081670447
+         1         17 STANDBY +FRA/CLSPROD/ONLINELOG/group_17.379.1081670451
+         1         18 STANDBY +DATA/CLSPROD/ONLINELOG/group_18.334.1081670457
+         1         18 STANDBY +FRA/CLSPROD/ONLINELOG/group_18.385.1081670459
+
+SQL> select inst_id,thread#,group# from gv$standby_log;
+
+   INST_ID    THREAD#     GROUP#
+---------- ---------- ----------
+         1          1         15
+         1          1         16
+         1          1         17
+         1          1         18
+         2          1         15
+         2          1         16
+         2          1         17
+         2          1         18
+
+
+-- Drop all standby redologs:
+
+alter database drop standby logfile group 15;
+alter database drop standby logfile group 16;
+alter database drop standby logfile group 17;
+alter database drop standby logfile group 18;
+
+-- Create standby redolog for both threads:
+
+ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 15 ('+DATA','+FRA') SIZE 1G;
+ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 16 ('+DATA','+FRA') SIZE 1G;
+ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 17 ('+DATA','+FRA') SIZE 1G;
+ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 18 ('+DATA','+FRA') SIZE 1G;
+ALTER DATABASE ADD STANDBY LOGFILE THREAD 2 GROUP 15 ('+DATA','+FRA') SIZE 1G;
+ALTER DATABASE ADD STANDBY LOGFILE THREAD 2 GROUP 16 ('+DATA','+FRA') SIZE 1G;
+ALTER DATABASE ADD STANDBY LOGFILE THREAD 2 GROUP 17 ('+DATA','+FRA') SIZE 1G;
+ALTER DATABASE ADD STANDBY LOGFILE THREAD 2 GROUP 18 ('+DATA','+FRA') SIZE 1G;
+
+--- Once standby redologs are created start recovery:
+
+SQL> alter database recover managed standby database using current logfile disconnect from session;
+
+Database altered.
+
+SQL> select open_mode from v$database;
+
+OPEN_MODE
+--------------------
+READ ONLY WITH APPLY
+
+--------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------
+DO THIS IN PRIMARY DATABASE:-
+alter system set log_archive_dest_state_2=enable scope=both sid='*';

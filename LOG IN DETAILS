@@ -1,7 +1,12 @@
+LIBERTYDB LAST UPDATE:-
+--------------------------
+
+set lines 200 pages 200;
+SELECT LAST_UPDATED_TIME,LSTU FROM "LIBERTYDB"."INFOBJ_FLIGHT" order by LSTU desc offset 1 rows fetch next 10 rows only ;
+
+
 SELECT LAST_UPDATED_TIME,LSTU FROM "LIBERTYDB"."INFOBJ_FLIGHT" order by LSTU asc ;
 
-
-SELECT LAST_UPDATED_TIME,LSTU FROM "LIBERTYDB"."INFOBJ_FLIGHT" order by LSTU desc offset 1 rows fetch next 10 rows only ;
 
 TO KNOW DB SIZE:--
 ------------------
@@ -12,10 +17,8 @@ PAM LOGIN :-
 ------------
 shiva_P
 
-Y9aevyMg@)!&^2
-
-Y9aevyMg@)!&^2
-
+Secure@!@#$%^&*!#
+Secure@!@#$%^&*!#
 ----------------------------------------------
 ----------------------------------------------
 

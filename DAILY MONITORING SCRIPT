@@ -24,10 +24,12 @@ ps -ef | grep pmon
 
 export ORACLE_SID=AMSPRD1
 
+export ORACLE_SID=AMSPRDSTBY1
 
 2)	Database  running status:(Database Name):- 
 
 srvctl status database -d AMSPRD
+srvctl status database -d AMSPRDSTBY
 
 srvctl status database -d IMBDB
 srvctl status database -d LIBERTYDB
@@ -36,6 +38,7 @@ srvctl status database -d BAWDB
 3)	Services running status:(Database Name):-
 
 srvctl status service -d AMSPRD
+srvctl status service -d AMSPRDSTBY
 
 srvctl status service -d IMBDB
 srvctl status service -d LIBERTYDB
@@ -62,8 +65,12 @@ srvctl status asm
 8)	Server Health Check status:-
 
 srvctl status server -n cdc1aodbdb1 -a
-
 srvctl status server -n cdc1aodbdb2 -a
+
+
+srvctl status server -n cdc2aodbdb1 -a
+srvctl status server -n cdc2aodbdb2 -a
+
 
 9)	Mount points check:(mount points should be under 75%):-
 
@@ -89,7 +96,7 @@ cd /u02/app/oracle/diag/rdbms/amsprd/AMSPRD1/trace
 
 cd /u02/app/oracle/diag/rdbms/imbdb/IMBDB1/trace
 
-cd /u02/app/oracle/diag/rdbms/libertydb/LIBERTYD1/trace  
+cd /u02/app/oracle/diag/rdbms/libertydb/  /trace  
                        
 cd /u02/app/oracle/diag/rdbms/bawdb/BAWDB1/trace
 
@@ -172,6 +179,7 @@ tail -500f al*.log
 ps -ef|grep pmon
 
 export ORACLE_SID=AMSPRD1
+export ORACLE_SID=AMSPRDSTBY1
 
 sqlplus / as sysdba
 
@@ -269,20 +277,44 @@ and
 ------------------------------------------------------------------------------------------------------------
 19) Inactive sessions check:-
 -------------------------
+
+select status,count(*),inst_id  from gv$session group by inst_id,status order by 1;
+ 
 select status,count(*) from gv$session group by status;
+
+select MACHINE,count(*) from gv$session where username is not null group by MACHINE;
+
+select sid,SERIAL# from gv$session where username is not null and SECONDS_IN_WAIT>60*60;
+
+select 'alter system kill session '''|| sid ||','||serial# ||''' immediate;' from gv$session where username is not null and SECONDS_IN_WAIT>60*60*3; 
+
+select MACHINE,count(*) from gv$session where username is not null and SECONDS_IN_WAIT>60*60*3 group by MACHINE;
+
+select MACHINE,SECONDS_IN_WAIT from gv$session where SECONDS_IN_WAIT>60*60*3 ;
+
 
 To get the total number of sessions connected :-
 ------------------------------------------------
 SELECT COUNT(*) AS TOTAL_SESSIONS
 FROM GV$SESSION;
 
-TO CHECK THE LONG RUNNING SESSIONS:-
-------------------------------------
-set lines 200 pages 200;
-col sid for 99999999;
-col TOTALWORK for a40;
-col sofar for a40;
-select SID,TARGET||OPNAME TARGET, TOTALWORK, SOFAR,TIME_REMAINING/60 Mins_Remaining,ELAPSED_SECONDS,SQL_ID from gv$session_longops where TIME_REMAINING>0 order by TIME_REMAINING;
+
+To get the total number of sessions connected LAST ONE WEEK COUNT OF SESSION BY DAY WISE :-
+---------------------------------------------------------------------------------------
+SELECT 
+    TO_CHAR(LOGON_TIME, 'YYYY-MM-DD') AS logon_date,
+    STATUS,
+    COUNT(*) AS session_count
+FROM 
+    V$SESSION
+WHERE 
+    LOGON_TIME >= SYSDATE - 7
+GROUP BY 
+    TO_CHAR(LOGON_TIME, 'YYYY-MM-DD'), 
+    STATUS
+ORDER BY 
+    logon_date, 
+    STATUS;
 
 
 TO CHECK LOAD BALANCING IN ON THAT TIME:-
@@ -291,6 +323,15 @@ set lines 200 pages 200;
 col USERNAME for a44;
 select inst_id,username,count(*) from gv$session where username is not null group by inst_id,username order by 2,1;
 
+
+
+TO CHECK THE LONG RUNNING SESSIONS:-
+------------------------------------
+set lines 200 pages 200;
+col sid for 99999999;
+col TOTALWORK for a40;
+col sofar for a40;
+select SID,TARGET||OPNAME TARGET, TOTALWORK, SOFAR,TIME_REMAINING/60 Mins_Remaining,ELAPSED_SECONDS,SQL_ID from gv$session_longops where TIME_REMAINING>0 order by TIME_REMAINING;
 
 TO CONNECTED USERS ON THAT TIME:-
 -------------------------------
@@ -307,6 +348,10 @@ SELECT username, machine, program, inst_id
 FROM gv$session
 WHERE username IS NOT NULL;
 
+		(OR)
+
+SELECT sid, serial#, username, status, last_call_et, program FROM gv$session WHERE status = 'INACTIVE'AND last_call_et > 3600;
+		
 		
 To count the number of distinct users connected to the database:-
 ----------------------------------------------------------------
@@ -322,7 +367,6 @@ FROM GV$SESSION
 WHERE USERNAME IS NOT NULL
 GROUP BY USERNAME
 ORDER BY SESSIONS_PER_USER DESC;
-
 
 
 ------------------------------------------------------------------------------------------------------------
@@ -433,10 +477,12 @@ ORDER BY
 TO KNOW EACH TABLESPACE IN DATAFILES:-
 ------------------------------------
 
-SQL> 
+
 col FILE_NAME for a55;
 set lines 200 pages 200;
-SELECT file_id,file_name, ROUND(bytes/1024/1024) AS size_mb,ROUND(maxbytes/1024/1024) AS max_size_mb,autoextensible,increment_by,status FROM   dba_data_files WHERE  tablespace_name = 'SYSAUX';
+SELECT file_id,file_name, ROUND(bytes/1024/1024) 
+AS size_mb,ROUND(maxbytes/1024/1024) AS max_size_mb,autoextensible,increment_by,status FROM  
+dba_data_files WHERE  tablespace_name = 'FOMLHTI1';
 
 
 -----------------------------------------------------------------------------------------------------------
@@ -503,8 +549,6 @@ FROM   dba_tablespaces
 ORDER BY tablespace_name;
 
 
-
-
 ------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------
 
@@ -552,7 +596,6 @@ SET ECHO        OFF
 23)	Check gap between DC1 and DC2 on primary:-
 -----------------------------------------
 
-set colsep |
 set scan on
 set feed off
 set linesize 200
@@ -814,6 +857,11 @@ alter system set log_archive_dest_state_2=enable scope=both sid='*';
 
 ------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------
-SELECT LAST_UPDATED_TIME,LSTU FROM "LIBERTYDB"."INFOBJ_FLIGHT" order by LSTU asc;
+LIBERTYDB LAST UPDATE:-
+--------------------------
 
-netstat -anp | grep LISTEN
+set lines 200 pages 200;
+SELECT LAST_UPDATED_TIME,LSTU FROM "LIBERTYDB"."INFOBJ_FLIGHT" order by LSTU desc offset 1 rows fetch next 10 rows only ;
+
+
+SELECT LAST_UPDATED_TIME,LSTU FROM "LIBERTYDB"."INFOBJ_FLIGHT" order by LSTU asc ;
